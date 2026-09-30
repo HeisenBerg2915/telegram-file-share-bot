@@ -710,6 +710,7 @@ app = FastAPI()
 
 
 @app.get("/")
+@app.head("/")
 async def health():
     return {
         "status": "running",
