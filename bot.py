@@ -57,27 +57,31 @@ active_batches = {}
 
 
 # =========================
-# Auto Delete Function
+# Delete Batch Messages
 # =========================
 
-async def delete_file_later(chat_id, message_id):
+async def delete_batch_messages(chat_id, message_ids):
     # 5 minutes
     await asyncio.sleep(300)
 
-    try:
-        await bot.delete_message(
-            chat_id=chat_id,
-            message_id=message_id
-        )
+    for message_id in message_ids:
 
-        print(
-            f"Deleted file message: {message_id}"
-        )
+        try:
+            await bot.delete_message(
+                chat_id=chat_id,
+                message_id=message_id
+            )
 
-    except Exception as e:
-        print(
-            f"Auto-delete error: {e}"
-        )
+            print(
+                f"Deleted message: {message_id}"
+            )
+
+        except Exception as e:
+
+            print(
+                f"Auto-delete error for "
+                f"{message_id}: {e}"
+            )
 
 
 # =========================
@@ -133,13 +137,27 @@ async def start_handler(message: Message):
         return
 
 
+    # Store all bot messages for this batch
+    messages_to_delete = []
+
+
+    # =========================
     # Sending message
-    await message.answer(
+    # =========================
+
+    sending_message = await message.answer(
         f"📦 Sending {len(files)} files..."
     )
 
+    messages_to_delete.append(
+        sending_message.message_id
+    )
 
+
+    # =========================
     # Send files
+    # =========================
+
     for file in files:
 
         try:
@@ -158,15 +176,10 @@ async def start_handler(message: Message):
             )
 
 
-            # Auto delete after 5 minutes
-            asyncio.create_task(
-
-                delete_file_later(
-
-                    message.chat.id,
-
-                    sent_message.message_id
-                )
+            # Add file message
+            # to delete list
+            messages_to_delete.append(
+                sent_message.message_id
             )
 
 
@@ -178,8 +191,11 @@ async def start_handler(message: Message):
             )
 
 
-    # Auto delete information
-    await message.answer(
+    # =========================
+    # Auto-delete information
+    # =========================
+
+    info_message = await message.answer(
 
         "ℹ️ <b>Auto-Delete Information</b>\n\n"
 
@@ -193,8 +209,38 @@ async def start_handler(message: Message):
     )
 
 
-    await message.answer(
+    messages_to_delete.append(
+        info_message.message_id
+    )
+
+
+    # =========================
+    # All files sent
+    # =========================
+
+    done_message = await message.answer(
         "✅ All files sent."
+    )
+
+
+    messages_to_delete.append(
+        done_message.message_id
+    )
+
+
+    # =========================
+    # Delete everything
+    # after 5 minutes
+    # =========================
+
+    asyncio.create_task(
+
+        delete_batch_messages(
+
+            message.chat.id,
+
+            messages_to_delete
+        )
     )
 
 
