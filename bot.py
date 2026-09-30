@@ -147,13 +147,18 @@ async def send_batch_result(chat_id, code):
     )
 
     sent_message = await bot.send_message(
-        chat_id=chat_id,
-        text=(
-            "📦 <b>Available Files</b>\n\n"
-            "📄 Select a file below to download it."
-        ),
-        parse_mode="HTML",
-        reply_markup=keyboard,
+    chat_id=chat_id,
+    text=(
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "<b>📦 Aᴠᴀɪʟᴀʙʟᴇ Fɪʟᴇs</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<b>🎬 Your requested files are ready!</b>\n\n"
+        "<b>📄 താഴെ നൽകിയിരിക്കുന്ന button-ൽ നിന്ന്\n"
+        "നിങ്ങൾക്ക് ആവശ്യമുള്ള file തിരഞ്ഞെടുക്കാം.</b>\n\n"
+        "🔗 <a href='https://t.me/Clmainchannel'><b>Team ചിത്രലോകം™️</b></a>"
+    ),
+    parse_mode="HTML",
+    reply_markup=keyboard
     )
 
     asyncio.create_task(
