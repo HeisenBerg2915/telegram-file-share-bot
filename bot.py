@@ -224,33 +224,53 @@ async def start_handler(message: Message):
 
     user_id = message.from_user.id
 
-    # Save which batch this user is trying to access
-    pending_access[user_id] = code
-
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="📢 Jᴏɪɴ Tᴏ Cʜᴀɴɴᴇʟ",
-                    url="https://t.me/+6VfgQS4IvSRjYjk9",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🔄 Tʀʏ Aɢᴀɪɴ",
-                    callback_data=f"check_join:{code}",
-                )
-            ],
-        ]
+# Check if user is already a member of the request channel
+try:
+    member = await bot.get_chat_member(
+        chat_id=REQUEST_CHANNEL_ID,
+        user_id=user_id,
     )
 
-    await message.answer(
-        "🔒 <b>Channel Join Required</b>\n\n"
-        "📢 ആദ്യം താഴെയുള്ള channel-ൽ Join Request അയക്കുക.\n\n"
-        "✅ Request അയച്ച ശേഷം <b>TRY AGAIN</b> അമർത്തുക.",
-        parse_mode="HTML",
-        reply_markup=keyboard,
-    )
+    status = member.status
+
+    # Already joined -> show files directly
+    if status in ("member", "administrator", "creator"):
+        await send_batch_result(
+            chat_id=user_id,
+            code=code,
+        )
+        return
+
+except Exception as e:
+    print(f"Membership check error: {e}")
+
+# User is not a member -> show Join + Try Again
+pending_access[user_id] = code
+
+keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="📌 Jᴏɪɴ Tᴏ Cʜᴀɴɴᴇʟ 📌",
+                url=https://t.me/+6VfgQS4IvSRjYjk9,
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🔄 Tʀʏ Aɢᴀɪɴ 🔄",
+                callback_data=f"check_join:{code}",
+            )
+        ],
+    ]
+)
+
+await message.answer(
+    "<b>🔒 Cʜᴀɴɴᴇʟ Jᴏɪɴ Rᴇǫᴜɪʀᴇᴅ</b>\n\n"
+    "<b>📢 ആദ്യം താഴെയുള്ള Cʜᴀɴɴᴇʟ-ൽ Join Request അയക്കുക.</b>\n\n"
+    "<b>✅ Request അയച്ച ശേഷം Tʀʏ Aɢᴀɪɴ അമർത്തുക.</b>",
+    parse_mode="HTML",
+    reply_markup=keyboard,
+)
 
 
 # ============================================================
