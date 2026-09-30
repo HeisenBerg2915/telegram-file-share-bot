@@ -14,12 +14,18 @@ from aiogram.types import (
     CallbackQuery,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
+    ChatJoinRequest,
 )
 
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 MONGO_URI = os.getenv("MONGO_URI")
+ADMIN_ID = os.getenv("ADMIN_ID")
+
+# Request-to-Join channel
+REQUEST_CHANNEL_ID = -1003907608959
+REQUEST_CHANNEL_LINK = "https://t.me/+ff_msXbxJVs3MThl"
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is missing")
@@ -37,6 +43,9 @@ router = Router()
 dp.include_router(router)
 
 active_batches = {}
+
+# User -> batch code waiting for channel request
+pending_access = {}
 
 FILES_PER_PAGE = 4
 
@@ -108,6 +117,59 @@ def create_file_keyboard(code, files, page=0):
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
+# ============================================================
+# SEND FILE RESULT
+# ============================================================
+
+async def send_batch_result(chat_id, code):
+    batch = batches.find_one({"code": code})
+
+    if not batch:
+        await bot.send_message(
+            chat_id=chat_id,
+            text="❌ Batch not found.",
+        )
+        return False
+
+    files = batch.get("files", [])
+
+    if not files:
+        await bot.send_message(
+            chat_id=chat_id,
+            text="❌ No files found.",
+        )
+        return False
+
+    keyboard = create_file_keyboard(
+        code=code,
+        files=files,
+        page=0,
+    )
+
+    sent_message = await bot.send_message(
+        chat_id=chat_id,
+        text=(
+            "📦 <b>Available Files</b>\n\n"
+            "📄 Select a file below to download it."
+        ),
+        parse_mode="HTML",
+        reply_markup=keyboard,
+    )
+
+    asyncio.create_task(
+        delete_file_later(
+            chat_id,
+            sent_message.message_id,
+        )
+    )
+
+    return True
+
+
+# ============================================================
+# START
+# ============================================================
+
 @router.message(Command("start"))
 async def start_handler(message: Message):
     parts = message.text.split(maxsplit=1)
@@ -133,7 +195,7 @@ async def start_handler(message: Message):
 
         await message.answer(
             "<b>Wᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ Dʀᴏᴘ Zᴏɴᴇ ⚡</b>\n\n"
-            "🤖 <b>ഞാൻ ഒരു Fɪʟᴇ Sʜᴇᴀʀɪɴɢ Bᴏᴛ ആണ്.</b>\n"
+            "🤖 <b>ഞാൻ ഒരു Fɪʟᴇ Sʜᴀʀɪɴɢ Bᴏᴛ ആണ്.</b>\n"
             "🎬 <b>ചിത്രലോകം ഗ്രൂപ്പിന് വേണ്ടി മാത്രം എന്നെ നിർമ്മിച്ചിരിക്കുന്നു. ❤️</b>",
             parse_mode="HTML",
             reply_markup=keyboard,
@@ -155,27 +217,158 @@ async def start_handler(message: Message):
         await message.answer("❌ No files found.")
         return
 
-    keyboard = create_file_keyboard(
-        code=code,
-        files=files,
-        page=0,
+    user_id = message.from_user.id
+
+    # Save which batch this user is trying to access
+    pending_access[user_id] = code
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📢 Jᴏɪɴ Tᴏ Cʜᴀɴɴᴇʟ",
+                    url=https://t.me/+ff_msXbxJVs3MThl,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔄 Tʀʏ Aɢᴀɪɴ",
+                    callback_data=f"check_join:{code}",
+                )
+            ],
+        ]
     )
 
-    sent_message = await message.answer(
-        "📦 <b>Available Files</b>\n\n"
-        "📄 Select a file below to download it.",
+    await message.answer(
+        "🔒 <b>Channel Join Required</b>\n\n"
+        "📢 ആദ്യം താഴെയുള്ള channel-ൽ Join Request അയക്കുക.\n\n"
+        "✅ Request അയച്ച ശേഷം <b>TRY AGAIN</b> അമർത്തുക.",
         parse_mode="HTML",
         reply_markup=keyboard,
     )
 
-    # Result message auto-delete after 5 minutes
-    asyncio.create_task(
-        delete_file_later(
-            message.chat.id,
-            sent_message.message_id,
-        )
+
+# ============================================================
+# JOIN REQUEST HANDLER
+# ============================================================
+
+@router.chat_join_request()
+async def join_request_handler(request: ChatJoinRequest):
+    user_id = request.from_user.id
+    chat_id = request.chat.id
+
+    print(
+        f"Join request received: "
+        f"user={user_id}, channel={chat_id}"
     )
 
+    # Only our request channel
+    if chat_id != REQUEST_CHANNEL_ID:
+        return
+
+    # User must have opened a batch link first
+    if user_id not in pending_access:
+        return
+
+    try:
+        # Auto approve the join request
+        await bot.approve_chat_join_request(
+            chat_id=chat_id,
+            user_id=user_id,
+        )
+
+        print(
+            f"Join request approved for user {user_id}"
+        )
+
+    except Exception as e:
+        print(
+            f"Join request approval error: {e}"
+        )
+
+
+# ============================================================
+# TRY AGAIN
+# ============================================================
+
+@router.callback_query(
+    lambda query: (
+        query.data
+        and query.data.startswith("check_join:")
+    )
+)
+async def check_join_handler(query: CallbackQuery):
+    user_id = query.from_user.id
+
+    try:
+        _, code = query.data.split(":", 1)
+    except Exception:
+        await query.answer(
+            "❌ Invalid request.",
+            show_alert=True,
+        )
+        return
+
+    # Make sure this user is checking their own pending code
+    if pending_access.get(user_id) != code:
+        pending_access[user_id] = code
+
+    try:
+        member = await bot.get_chat_member(
+            chat_id=REQUEST_CHANNEL_ID,
+            user_id=user_id,
+        )
+
+        status = member.status
+
+        # Valid subscribed/member statuses
+        if status in ("member", "administrator", "creator"):
+            pending_access.pop(user_id, None)
+
+            await query.answer(
+                "✅ Verified!",
+                show_alert=False,
+            )
+
+            try:
+                await query.message.delete()
+            except Exception:
+                pass
+
+            await send_batch_result(
+                chat_id=user_id,
+                code=code,
+            )
+
+            return
+
+        # Still pending
+        if status == "restricted":
+            await query.answer(
+                "⏳ Your request is still pending.",
+                show_alert=True,
+            )
+            return
+
+        await query.answer(
+            "❌ Please Join the channel first.",
+            show_alert=True,
+        )
+
+    except Exception as e:
+        print(
+            f"Join verification error: {e}"
+        )
+
+        await query.answer(
+            "❌ Please send a Join Request first.",
+            show_alert=True,
+        )
+
+
+# ============================================================
+# PAGINATION
+# ============================================================
 
 @router.callback_query(
     lambda query: query.data and query.data.startswith("page:")
@@ -236,6 +429,10 @@ async def pagination_handler(query: CallbackQuery):
     await query.answer()
 
 
+# ============================================================
+# PAGE INFO
+# ============================================================
+
 @router.callback_query(
     lambda query: query.data == "page_info"
 )
@@ -245,6 +442,10 @@ async def page_info_handler(query: CallbackQuery):
         show_alert=False,
     )
 
+
+# ============================================================
+# FILE DOWNLOAD
+# ============================================================
 
 @router.callback_query(
     lambda query: query.data and query.data.startswith("file:")
@@ -316,10 +517,16 @@ async def file_callback_handler(query: CallbackQuery):
 
         await bot.send_message(
             chat_id=query.message.chat.id,
-            text="❌ Failed to send the file.\n\n"
-                 "Please try again.",
+            text=(
+                "❌ Failed to send the file.\n\n"
+                "Please try again."
+            ),
         )
 
+
+# ============================================================
+# BATCH
+# ============================================================
 
 @router.message(Command("batch"))
 async def batch_handler(message: Message):
@@ -338,6 +545,10 @@ async def batch_handler(message: Message):
         "Send multiple files and when finished use /finish."
     )
 
+
+# ============================================================
+# FINISH
+# ============================================================
 
 @router.message(Command("finish"))
 async def finish_handler(message: Message):
@@ -385,6 +596,10 @@ async def finish_handler(message: Message):
     )
 
 
+# ============================================================
+# STATS
+# ============================================================
+
 @router.message(Command("stats"))
 async def stats_handler(message: Message):
     user_id = message.from_user.id
@@ -425,6 +640,10 @@ async def stats_handler(message: Message):
     )
 
 
+# ============================================================
+# FILE HANDLER
+# ============================================================
+
 @router.message()
 async def file_handler(message: Message):
     user_id = message.from_user.id
@@ -458,6 +677,10 @@ async def file_handler(message: Message):
         f"Send another file or /finish"
     )
 
+
+# ============================================================
+# FASTAPI
+# ============================================================
 
 app = FastAPI()
 
