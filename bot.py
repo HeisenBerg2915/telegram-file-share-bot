@@ -17,7 +17,6 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 MONGO_URI = os.getenv("MONGO_URI")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 
 if not BOT_TOKEN:
@@ -198,31 +197,15 @@ async def health():
         "service": "Telegram File Share Bot"
     }
 
-
-@app.post("/webhook")
-async def webhook(request: Request):
-    data = await request.json()
-
-    update = Update.model_validate(data)
-
-    await dp.feed_update(bot, update)
-
-    return {"ok": True}
-
-
 @app.on_event("startup")
 async def startup():
-    webhook_url = f"{WEBHOOK_URL.rstrip('/')}/webhook"
+    await bot.delete_webhook(drop_pending_updates=True)
 
-    await bot.set_webhook(
-        url=webhook_url,
-        drop_pending_updates=True
-    )
+    asyncio.create_task(dp.start_polling(bot))
 
-    print("Webhook set:", webhook_url)
+    print("🤖 Bot polling started")
 
 
 @app.on_event("shutdown")
 async def shutdown():
-    await bot.delete_webhook()
     await bot.session.close()
