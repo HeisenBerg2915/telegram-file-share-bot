@@ -242,23 +242,25 @@ async def start_handler(message: Message):
 
     if len(parts) == 1:
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="👥 Jᴏɪɴ ᴏʀᴜ Gʀᴏᴜᴘ 👥",
-                        url="https://t.me/+Ik14BdOewjQzYjI1"
-                    ),
-                    InlineKeyboardButton(
-                        text="📌 Jᴏɪɴ Uᴘᴅᴀᴛᴇ Cʜᴀɴɴᴇʟ 📌",
-                        url="https://t.me/Clmainchannel"
-                    )
-                ]
-            ]
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="👥 Jᴏɪɴ ᴏʀᴜ Gʀᴏᴜᴘ 👥",
+                url="https://t.me/+Ik14BdOewjQzYjI1"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="📌 Jᴏɪɴ Uᴘᴅᴀᴛᴇ Cʜᴀɴɴᴇʟ 📌",
+                url="https://t.me/Clmainchannel"
+            )
+        ]
+    ]
         )
 
         await message.answer(
             "👋 <b>Welcome!</b>\n\n"
-            "🤖 <b>ഞാൻ ഒരു 𝐅𝐢𝐥𝐞 𝐒𝐡𝐚𝐫𝐢𝐧𝐠 𝐁𝐨𝐭 ആണ്.</b>\n"
+            "🤖 <b>ഞാൻ ഒരു Fɪʟᴇ Sʜᴀʀɪɴɢ Bᴏᴛ ആണ്.</b>\n"
             "🎬 <b>ചിത്രലോകം ഗ്രൂപ്പിന് വേണ്ടി മാത്രം എന്നെ നിർമ്മിച്ചിരിക്കുന്നു. ❤️</b>",
             parse_mode="HTML",
             reply_markup=keyboard
