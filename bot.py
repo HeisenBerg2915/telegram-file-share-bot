@@ -24,8 +24,8 @@ MONGO_URI = os.getenv("MONGO_URI")
 ADMIN_ID = os.getenv("ADMIN_ID")
 
 # Request-to-Join channel
-REQUEST_CHANNEL_ID = -1003907608959
-REQUEST_CHANNEL_LINK = "https://t.me/+6VfgQS4IvSRjYjk9"
+REQUEST_CHANNEL_ID = -1004366581317
+REQUEST_CHANNEL_LINK = "https://t.me/+TBEZZOyLdPdjODg1"
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is missing")
@@ -252,7 +252,7 @@ async def start_handler(message: Message):
             [
                 InlineKeyboardButton(
                     text="📢 Jᴏɪɴ Tᴏ Cʜᴀɴɴᴇʟ",
-                    url="https://t.me/+6VfgQS4IvSRjYjk9",
+                    url="https://t.me/+TBEZZOyLdPdjODg1",
                 )
             ],
             [
