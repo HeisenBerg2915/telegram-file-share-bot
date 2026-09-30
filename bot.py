@@ -1,7 +1,11 @@
 import os
 import asyncio
 import secrets
+import re
+import json
 from datetime import datetime, timezone
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -20,12 +24,16 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 MONGO_URI = os.getenv("MONGO_URI")
+TMDB_TOKEN = os.getenv("TMDB_TOKEN")
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is missing")
 
 if not MONGO_URI:
     raise RuntimeError("MONGO_URI is missing")
+
+if not TMDB_TOKEN:
+    raise RuntimeError("TMDB_TOKEN is missing")
 
 mongo = MongoClient(MONGO_URI)
 db = mongo["file_share_bot"]
@@ -41,6 +49,10 @@ active_batches = {}
 FILES_PER_PAGE = 4
 
 
+# =========================
+# AUTO DELETE
+# =========================
+
 async def delete_file_later(chat_id, message_id):
     await asyncio.sleep(300)
 
@@ -49,23 +61,233 @@ async def delete_file_later(chat_id, message_id):
             chat_id=chat_id,
             message_id=message_id,
         )
+
         print(f"Auto-deleted message: {message_id}")
+
     except Exception as e:
         print(f"Auto-delete error for {message_id}: {e}")
 
 
+# =========================
+# MOVIE NAME CLEANER
+# =========================
+
+def clean_movie_name(file_name):
+    if not file_name:
+        return ""
+
+    name = os.path.splitext(file_name)[0]
+
+    # Replace common separators
+    name = name.replace(".", " ")
+    name = name.replace("_", " ")
+
+    # Remove common release tags
+    patterns = [
+        r"\b\d{3,4}p\b",
+        r"\b\d{4}p\b",
+        r"\b4k\b",
+        r"\b2160p\b",
+        r"\b1080p\b",
+        r"\b720p\b",
+        r"\b480p\b",
+
+        r"\bWEB[- ]?DL\b",
+        r"\bWEB[- ]?Rip\b",
+        r"\bWEBRip\b",
+        r"\bBluRay\b",
+        r"\bBRRip\b",
+        r"\bHDRip\b",
+        r"\bHDTV\b",
+        r"\bDVDRip\b",
+
+        r"\bx264\b",
+        r"\bx265\b",
+        r"\bHEVC\b",
+        r"\bAAC\b",
+        r"\bDDP?\b",
+        r"\b5\.1\b",
+
+        r"\b10bit\b",
+        r"\b8bit\b",
+
+        r"\bESub\b",
+        r"\bESubs\b",
+        r"\bMulti\b",
+        r"\bDual Audio\b",
+        r"\bHindi\b",
+        r"\bMalayalam\b",
+        r"\bTamil\b",
+        r"\bTelugu\b",
+        r"\bEnglish\b",
+
+        r"\bS\d{1,2}E\d{1,2}\b",
+        r"\bS\d{1,2}\b",
+
+        r"\bSeason\s+\d+\b",
+        r"\bEpisode\s+\d+\b",
+
+        r"\b\d{4}\b",
+    ]
+
+    for pattern in patterns:
+        name = re.sub(
+            pattern,
+            " ",
+            name,
+            flags=re.IGNORECASE,
+        )
+
+    # Remove brackets
+    name = re.sub(r"[\[\]\(\)\{\}]", " ", name)
+
+    # Remove repeated spaces
+    name = re.sub(r"\s+", " ", name).strip()
+
+    return name
+
+
+# =========================
+# TMDB SEARCH
+# =========================
+
+def tmdb_request(endpoint):
+    url = f"https://api.themoviedb.org/3/{endpoint}"
+
+    request = Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {TMDB_TOKEN}",
+            "accept": "application/json",
+        },
+    )
+
+    with urlopen(request, timeout=10) as response:
+        return json.loads(
+            response.read().decode("utf-8")
+        )
+
+
+def search_tmdb(movie_name):
+    if not movie_name:
+        return None
+
+    encoded_name = quote(movie_name)
+
+    # First search movies
+    try:
+        movie_data = tmdb_request(
+            f"search/movie?query={encoded_name}"
+            f"&include_adult=false"
+            f"&language=en-US"
+            f"&page=1"
+        )
+
+        movie_results = movie_data.get(
+            "results",
+            [],
+        )
+
+        for result in movie_results:
+            if result.get("poster_path"):
+                return result
+
+    except Exception as e:
+        print("TMDB movie search error:", e)
+
+    # If movie not found, search TV shows
+    try:
+        tv_data = tmdb_request(
+            f"search/tv?query={encoded_name}"
+            f"&include_adult=false"
+            f"&language=en-US"
+            f"&page=1"
+        )
+
+        tv_results = tv_data.get(
+            "results",
+            [],
+        )
+
+        for result in tv_results:
+            if result.get("poster_path"):
+                return result
+
+    except Exception as e:
+        print("TMDB TV search error:", e)
+
+    return None
+
+
+async def get_movie_poster(file_name):
+    movie_name = clean_movie_name(file_name)
+
+    if not movie_name:
+        return None
+
+    print(
+        f"Searching TMDB poster for: {movie_name}"
+    )
+
+    try:
+        result = await asyncio.to_thread(
+            search_tmdb,
+            movie_name,
+        )
+
+        if not result:
+            print(
+                f"No TMDB result found for: {movie_name}"
+            )
+            return None
+
+        poster_path = result.get("poster_path")
+
+        if not poster_path:
+            return None
+
+        poster_url = (
+            "https://image.tmdb.org/t/p/w500"
+            f"{poster_path}"
+        )
+
+        print(
+            f"TMDB poster found: {poster_url}"
+        )
+
+        return poster_url
+
+    except Exception as e:
+        print("Poster search error:", e)
+        return None
+
+
+# =========================
+# FILE KEYBOARD
+# =========================
+
 def create_file_keyboard(code, files, page=0):
     total_files = len(files)
-    total_pages = (total_files + FILES_PER_PAGE - 1) // FILES_PER_PAGE
+
+    total_pages = (
+        total_files + FILES_PER_PAGE - 1
+    ) // FILES_PER_PAGE
 
     start = page * FILES_PER_PAGE
     end = start + FILES_PER_PAGE
+
     page_files = files[start:end]
 
     keyboard = []
 
-    for index, file in enumerate(page_files, start=start):
-        file_name = file.get("file_name") or "Unnamed file"
+    for index, file in enumerate(
+        page_files,
+        start=start,
+    ):
+        file_name = (
+            file.get("file_name")
+            or "Unnamed file"
+        )
 
         if len(file_name) > 45:
             file_name = file_name[:42] + "..."
@@ -73,7 +295,9 @@ def create_file_keyboard(code, files, page=0):
         keyboard.append([
             InlineKeyboardButton(
                 text=f"📄 {file_name}",
-                callback_data=f"file:{code}:{index}",
+                callback_data=(
+                    f"file:{code}:{index}"
+                ),
             )
         ])
 
@@ -83,7 +307,9 @@ def create_file_keyboard(code, files, page=0):
         navigation.append(
             InlineKeyboardButton(
                 text="⬅️ BACK",
-                callback_data=f"page:{code}:{page - 1}",
+                callback_data=(
+                    f"page:{code}:{page - 1}"
+                ),
             )
         )
 
@@ -91,7 +317,9 @@ def create_file_keyboard(code, files, page=0):
         navigation.append(
             InlineKeyboardButton(
                 text="NEXT ➡️",
-                callback_data=f"page:{code}:{page + 1}",
+                callback_data=(
+                    f"page:{code}:{page + 1}"
+                ),
             )
         )
 
@@ -105,54 +333,93 @@ def create_file_keyboard(code, files, page=0):
         )
     ])
 
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return InlineKeyboardMarkup(
+        inline_keyboard=keyboard
+    )
 
+
+# =========================
+# START
+# =========================
 
 @router.message(Command("start"))
 async def start_handler(message: Message):
-    parts = message.text.split(maxsplit=1)
+    parts = message.text.split(
+        maxsplit=1
+    )
 
-    # Normal /start
+    # =========================
+    # NORMAL /START
+    # =========================
+
     if len(parts) == 1:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
                         text="👥 Jᴏɪɴ ᴏʀᴜ Gʀᴏᴜᴘ 👥",
-                        url="https://t.me/+Ik14BdOewjQzYjI1",
+                        url=(
+                            "https://t.me/"
+                            "+Ik14BdOewjQzYjI1"
+                        ),
                     )
                 ],
                 [
                     InlineKeyboardButton(
-                        text="📌 Jᴏɪɴ Uᴘᴅᴀᴛᴇ Cʜᴀɴɴᴇʟ 📌",
-                        url="https://t.me/Clmainchannel",
+                        text=(
+                            "📌 Jᴏɪɴ Uᴘᴅᴀᴛᴇ "
+                            "Cʜᴀɴɴᴇʟ 📌"
+                        ),
+                        url=(
+                            "https://t.me/"
+                            "Clmainchannel"
+                        ),
                     )
                 ],
             ]
         )
 
         await message.answer(
-            "👋 <b> Wᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ Dʀᴏᴘ Zᴏɴᴇ ⚡</b>\n\n"
-            "🤖 <b>ഞാൻ ഒരു Fɪʟᴇ Sʜᴇᴀʀɪɴɢ Bᴏᴛ ആണ്.</b>\n"
-            "🎬 <b>ചിത്രലോകം ഗ്രൂപ്പിന് വേണ്ടി മാത്രം എന്നെ നിർമ്മിച്ചിരിക്കുന്നു. ❤️</b>",
+            "👋 <b> Wᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ "
+            "Dʀᴏᴘ Zᴏɴᴇ ⚡</b>\n\n"
+
+            "🤖 <b>ഞാൻ ഒരു Fɪʟᴇ Sʜᴇᴀʀɪɴɢ "
+            "Bᴏᴛ ആണ്.</b>\n"
+
+            "🎬 <b>ചിത്രലോകം ഗ്രൂപ്പിന് വേണ്ടി മാത്രം "
+            "എന്നെ നിർമ്മിച്ചിരിക്കുന്നു. ❤️</b>",
+
             parse_mode="HTML",
             reply_markup=keyboard,
         )
+
         return
 
-    # Share link /start CODE
+    # =========================
+    # SHARE LINK
+    # =========================
+
     code = parts[1]
 
-    batch = batches.find_one({"code": code})
+    batch = batches.find_one(
+        {"code": code}
+    )
 
     if not batch:
-        await message.answer("❌ Batch not found.")
+        await message.answer(
+            "❌ Batch not found."
+        )
         return
 
-    files = batch.get("files", [])
+    files = batch.get(
+        "files",
+        []
+    )
 
     if not files:
-        await message.answer("❌ No files found.")
+        await message.answer(
+            "❌ No files found."
+        )
         return
 
     keyboard = create_file_keyboard(
@@ -161,14 +428,72 @@ async def start_handler(message: Message):
         page=0,
     )
 
-    sent_message = await message.answer(
-        "📦 <b>Available Files</b>\n\n"
-        "📄 Select a file below to download it.",
-        parse_mode="HTML",
-        reply_markup=keyboard,
+    # =========================
+    # FIND POSTER
+    # =========================
+
+    poster_url = batch.get(
+        "poster_url"
     )
 
-    # Result message auto-delete after 5 minutes
+    # If poster was not saved earlier,
+    # search using first file name.
+    if not poster_url:
+        first_file_name = files[0].get(
+            "file_name"
+        )
+
+        poster_url = await get_movie_poster(
+            first_file_name
+        )
+
+        if poster_url:
+            batches.update_one(
+                {"code": code},
+                {
+                    "$set": {
+                        "poster_url": poster_url
+                    }
+                },
+            )
+
+    # =========================
+    # SEND POSTER ONLY
+    # =========================
+
+    if poster_url:
+        try:
+            sent_message = await message.answer_photo(
+                photo=poster_url,
+                reply_markup=keyboard,
+            )
+
+        except Exception as e:
+            print(
+                "Poster send error:",
+                e
+            )
+
+            # Fallback if Telegram cannot
+            # load the poster
+            sent_message = await message.answer(
+                "📦 <b>Available Files</b>",
+                parse_mode="HTML",
+                reply_markup=keyboard,
+            )
+
+    else:
+        # Poster unavailable
+        sent_message = await message.answer(
+            "📦 <b>Available Files</b>",
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+
+    # =========================
+    # AUTO DELETE RESULT
+    # =========================
+
     asyncio.create_task(
         delete_file_later(
             message.chat.id,
@@ -177,13 +502,25 @@ async def start_handler(message: Message):
     )
 
 
+# =========================
+# PAGINATION
+# =========================
+
 @router.callback_query(
-    lambda query: query.data and query.data.startswith("page:")
+    lambda query:
+        query.data
+        and query.data.startswith("page:")
 )
-async def pagination_handler(query: CallbackQuery):
+async def pagination_handler(
+    query: CallbackQuery
+):
     try:
-        _, code, page_str = query.data.split(":")
+        _, code, page_str = (
+            query.data.split(":")
+        )
+
         page = int(page_str)
+
     except Exception:
         await query.answer(
             "❌ Invalid page.",
@@ -191,7 +528,9 @@ async def pagination_handler(query: CallbackQuery):
         )
         return
 
-    batch = batches.find_one({"code": code})
+    batch = batches.find_one(
+        {"code": code}
+    )
 
     if not batch:
         await query.answer(
@@ -200,7 +539,10 @@ async def pagination_handler(query: CallbackQuery):
         )
         return
 
-    files = batch.get("files", [])
+    files = batch.get(
+        "files",
+        []
+    )
 
     if not files:
         await query.answer(
@@ -210,7 +552,9 @@ async def pagination_handler(query: CallbackQuery):
         return
 
     total_pages = (
-        len(files) + FILES_PER_PAGE - 1
+        len(files)
+        + FILES_PER_PAGE
+        - 1
     ) // FILES_PER_PAGE
 
     if page < 0 or page >= total_pages:
@@ -230,29 +574,52 @@ async def pagination_handler(query: CallbackQuery):
         await query.message.edit_reply_markup(
             reply_markup=keyboard
         )
+
     except Exception as e:
-        print("Pagination error:", e)
+        print(
+            "Pagination error:",
+            e
+        )
 
     await query.answer()
 
 
+# =========================
+# PAGE INFO
+# =========================
+
 @router.callback_query(
-    lambda query: query.data == "page_info"
+    lambda query:
+        query.data == "page_info"
 )
-async def page_info_handler(query: CallbackQuery):
+async def page_info_handler(
+    query: CallbackQuery
+):
     await query.answer(
         "📄 Select a file to download it.",
         show_alert=False,
     )
 
 
+# =========================
+# FILE DOWNLOAD
+# =========================
+
 @router.callback_query(
-    lambda query: query.data and query.data.startswith("file:")
+    lambda query:
+        query.data
+        and query.data.startswith("file:")
 )
-async def file_callback_handler(query: CallbackQuery):
+async def file_callback_handler(
+    query: CallbackQuery
+):
     try:
-        _, code, index_str = query.data.split(":")
+        _, code, index_str = (
+            query.data.split(":")
+        )
+
         index = int(index_str)
+
     except Exception:
         await query.answer(
             "❌ Invalid file.",
@@ -260,7 +627,9 @@ async def file_callback_handler(query: CallbackQuery):
         )
         return
 
-    batch = batches.find_one({"code": code})
+    batch = batches.find_one(
+        {"code": code}
+    )
 
     if not batch:
         await query.answer(
@@ -269,7 +638,10 @@ async def file_callback_handler(query: CallbackQuery):
         )
         return
 
-    files = batch.get("files", [])
+    files = batch.get(
+        "files",
+        []
+    )
 
     if index < 0 or index >= len(files):
         await query.answer(
@@ -280,8 +652,14 @@ async def file_callback_handler(query: CallbackQuery):
 
     file = files[index]
 
-    file_id = file.get("file_id")
-    file_name = file.get("file_name") or "Unnamed file"
+    file_id = file.get(
+        "file_id"
+    )
+
+    file_name = (
+        file.get("file_name")
+        or "Unnamed file"
+    )
 
     if not file_id:
         await query.answer(
@@ -298,9 +676,11 @@ async def file_callback_handler(query: CallbackQuery):
             document=file_id,
             caption=(
                 f"📄 {file_name}\n\n"
-                "⏳ This file will be automatically deleted "
+                "⏳ This file will be "
+                "automatically deleted "
                 "after 5 minutes.\n"
-                "📥 Please download/save it before deletion."
+                "📥 Please download/save "
+                "it before deletion."
             ),
         )
 
@@ -312,22 +692,36 @@ async def file_callback_handler(query: CallbackQuery):
         )
 
     except Exception as e:
-        print("File send error:", e)
+        print(
+            "File send error:",
+            e
+        )
 
         await bot.send_message(
             chat_id=query.message.chat.id,
-            text="❌ Failed to send the file.\n\n"
-                 "Please try again.",
+            text=(
+                "❌ Failed to send the file.\n\n"
+                "Please try again."
+            ),
         )
 
 
+# =========================
+# BATCH
+# =========================
+
 @router.message(Command("batch"))
-async def batch_handler(message: Message):
+async def batch_handler(
+    message: Message
+):
     user_id = message.from_user.id
 
-    if str(user_id) != os.getenv("ADMIN_ID"):
+    if str(user_id) != os.getenv(
+        "ADMIN_ID"
+    ):
         await message.answer(
-            "❌ You are not authorized to use /batch."
+            "❌ You are not authorized "
+            "to use /batch."
         )
         return
 
@@ -335,12 +729,19 @@ async def batch_handler(message: Message):
 
     await message.answer(
         "📤 Send your files one by one.\n\n"
-        "Send multiple files and when finished use /finish."
+        "Send multiple files and when "
+        "finished use /finish."
     )
 
 
+# =========================
+# FINISH
+# =========================
+
 @router.message(Command("finish"))
-async def finish_handler(message: Message):
+async def finish_handler(
+    message: Message
+):
     user_id = message.from_user.id
 
     if user_id not in active_batches:
@@ -361,49 +762,89 @@ async def finish_handler(message: Message):
 
     code = secrets.token_urlsafe(8)
 
+    # =========================
+    # FIND POSTER DURING FINISH
+    # =========================
+
+    poster_url = None
+
+    first_file_name = files[0].get(
+        "file_name"
+    )
+
+    if first_file_name:
+        poster_url = await get_movie_poster(
+            first_file_name
+        )
+
     batch_data = {
         "code": code,
         "user_id": user_id,
         "files": files,
-        "created_at": datetime.now(timezone.utc),
+        "poster_url": poster_url,
+        "created_at": datetime.now(
+            timezone.utc
+        ),
     }
 
-    batches.insert_one(batch_data)
+    batches.insert_one(
+        batch_data
+    )
 
     del active_batches[user_id]
 
     me = await bot.get_me()
 
     share_link = (
-        f"https://t.me/{me.username}?start={code}"
+        f"https://t.me/"
+        f"{me.username}"
+        f"?start={code}"
     )
 
     await message.answer(
         "✅ Batch created successfully!\n\n"
         f"📦 Files: {len(files)}\n\n"
-        f"🔗 Share Link:\n{share_link}"
+        f"🔗 Share Link:\n"
+        f"{share_link}"
     )
 
 
+# =========================
+# STATS
+# =========================
+
 @router.message(Command("stats"))
-async def stats_handler(message: Message):
+async def stats_handler(
+    message: Message
+):
     user_id = message.from_user.id
 
-    if str(user_id) != os.getenv("ADMIN_ID"):
+    if str(user_id) != os.getenv(
+        "ADMIN_ID"
+    ):
         await message.answer(
-            "❌ You are not authorized to use /stats."
+            "❌ You are not authorized "
+            "to use /stats."
         )
         return
 
-    total_batches = batches.count_documents({})
+    total_batches = (
+        batches.count_documents({})
+    )
 
     pipeline = [
-        {"$unwind": "$files"},
-        {"$count": "total"},
+        {
+            "$unwind": "$files"
+        },
+        {
+            "$count": "total"
+        },
     ]
 
     result = list(
-        batches.aggregate(pipeline)
+        batches.aggregate(
+            pipeline
+        )
     )
 
     total_files = (
@@ -413,7 +854,9 @@ async def stats_handler(message: Message):
     )
 
     unique_users = len(
-        batches.distinct("user_id")
+        batches.distinct(
+            "user_id"
+        )
     )
 
     await message.answer(
@@ -425,8 +868,14 @@ async def stats_handler(message: Message):
     )
 
 
+# =========================
+# FILE HANDLER
+# =========================
+
 @router.message()
-async def file_handler(message: Message):
+async def file_handler(
+    message: Message
+):
     user_id = message.from_user.id
 
     if user_id not in active_batches:
@@ -434,7 +883,8 @@ async def file_handler(message: Message):
 
     if not message.document:
         await message.answer(
-            "⚠️ Please send the file as a document."
+            "⚠️ Please send the file "
+            "as a document."
         )
         return
 
@@ -447,9 +897,13 @@ async def file_handler(message: Message):
         "mime_type": document.mime_type,
     }
 
-    active_batches[user_id].append(file_data)
+    active_batches[user_id].append(
+        file_data
+    )
 
-    count = len(active_batches[user_id])
+    count = len(
+        active_batches[user_id]
+    )
 
     await message.answer(
         f"✅ File added\n\n"
@@ -459,6 +913,10 @@ async def file_handler(message: Message):
     )
 
 
+# =========================
+# FASTAPI
+# =========================
+
 app = FastAPI()
 
 
@@ -466,7 +924,9 @@ app = FastAPI()
 async def health():
     return {
         "status": "running",
-        "service": "Telegram File Share Bot",
+        "service": (
+            "Telegram File Share Bot"
+        ),
     }
 
 
@@ -480,7 +940,9 @@ async def startup():
         dp.start_polling(bot)
     )
 
-    print("🤖 Bot polling started")
+    print(
+        "🤖 Bot polling started"
+    )
 
 
 @app.on_event("shutdown")
