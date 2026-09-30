@@ -251,9 +251,9 @@ keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [
             InlineKeyboardButton(
-                text="📌 Jᴏɪɴ Tᴏ Cʜᴀɴɴᴇʟ 📌",
-                url=https://t.me/+6VfgQS4IvSRjYjk9",
-            )
+               text="📢 Jᴏɪɴ Tᴏ Cʜᴀɴɴᴇʟ",
+                url="https://t.me/+6VfgQS4IvSRjYjk9",
+            ),
         ],
         [
             InlineKeyboardButton(
