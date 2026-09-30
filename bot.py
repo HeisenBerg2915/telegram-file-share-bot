@@ -9,7 +9,12 @@ from pymongo import MongoClient
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import (
+    Message,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
+)
 
 
 load_dotenv()
@@ -57,31 +62,174 @@ active_batches = {}
 
 
 # =========================
-# Delete Batch Messages
+# Pagination Settings
 # =========================
 
-async def delete_batch_messages(chat_id, message_ids):
+FILES_PER_PAGE = 4
+
+
+# =========================
+# Delete Single File
+# =========================
+
+async def delete_file_later(chat_id, message_id):
+
     # 5 minutes
     await asyncio.sleep(300)
 
-    for message_id in message_ids:
+    try:
 
-        try:
-            await bot.delete_message(
-                chat_id=chat_id,
-                message_id=message_id
+        await bot.delete_message(
+            chat_id=chat_id,
+            message_id=message_id
+        )
+
+        print(
+            f"Auto-deleted file message: "
+            f"{message_id}"
+        )
+
+    except Exception as e:
+
+        print(
+            f"Auto-delete error for "
+            f"{message_id}: {e}"
+        )
+
+
+# =========================
+# Create File List Keyboard
+# =========================
+
+def create_file_keyboard(
+    code,
+    files,
+    page=0
+):
+
+    total_files = len(files)
+
+    total_pages = (
+        (total_files + FILES_PER_PAGE - 1)
+        // FILES_PER_PAGE
+    )
+
+    start = page * FILES_PER_PAGE
+
+    end = start + FILES_PER_PAGE
+
+    page_files = files[start:end]
+
+
+    keyboard = []
+
+
+    # =========================
+    # File Buttons
+    # =========================
+
+    for index, file in enumerate(
+        page_files,
+        start=start
+    ):
+
+        file_name = file.get(
+            "file_name",
+            "Unnamed file"
+        )
+
+
+        # Telegram button text
+        # should not become too long
+        if len(file_name) > 45:
+
+            file_name = (
+                file_name[:42] + "..."
             )
 
-            print(
-                f"Deleted message: {message_id}"
+
+        keyboard.append([
+
+            InlineKeyboardButton(
+
+                text=f"📄 {file_name}",
+
+                callback_data=(
+                    f"file:{code}:{index}"
+                )
             )
 
-        except Exception as e:
+        ])
 
-            print(
-                f"Auto-delete error for "
-                f"{message_id}: {e}"
+
+    # =========================
+    # Page Navigation
+    # =========================
+
+    navigation = []
+
+
+    # Back button
+    if page > 0:
+
+        navigation.append(
+
+            InlineKeyboardButton(
+
+                text="⬅️ BACK",
+
+                callback_data=(
+                    f"page:{code}:{page - 1}"
+                )
             )
+
+        )
+
+
+    # Next button
+    if page < total_pages - 1:
+
+        navigation.append(
+
+            InlineKeyboardButton(
+
+                text="NEXT ➡️",
+
+                callback_data=(
+                    f"page:{code}:{page + 1}"
+                )
+            )
+
+        )
+
+
+    if navigation:
+
+        keyboard.append(
+            navigation
+        )
+
+
+    # =========================
+    # Page Indicator
+    # =========================
+
+    keyboard.append([
+
+        InlineKeyboardButton(
+
+            text=f"{page + 1}/{total_pages}",
+
+            callback_data="page_info"
+
+        )
+
+    ])
+
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=keyboard
+    )
 
 
 # =========================
@@ -93,29 +241,42 @@ async def start_handler(message: Message):
 
     parts = message.text.split(maxsplit=1)
 
+
+    # =========================
     # Normal /start
+    # =========================
+
     if len(parts) == 1:
 
         await message.answer(
+
             "👋 Welcome!\n\n"
-            "Use /batch to create a file batch."
+
+            "Use /batch to create "
+            "a file batch."
         )
 
         return
 
 
-    # Share code
+    # =========================
+    # Share Code
+    # =========================
+
     code = parts[1]
 
 
     batch = batches.find_one({
+
         "code": code
+
     })
 
 
     if not batch:
 
         await message.answer(
+
             "❌ Batch not found."
         )
 
@@ -131,117 +292,374 @@ async def start_handler(message: Message):
     if not files:
 
         await message.answer(
+
             "❌ No files found."
         )
 
         return
 
 
-    # Store all bot messages for this batch
-    messages_to_delete = []
-
-
     # =========================
-    # Sending message
+    # File List
     # =========================
 
-    sending_message = await message.answer(
-        f"📦 Sending {len(files)} files..."
-    )
+    keyboard = create_file_keyboard(
 
-    messages_to_delete.append(
-        sending_message.message_id
-    )
+        code=code,
 
+        files=files,
 
-    # =========================
-    # Send files
-    # =========================
+        page=0
 
-    for file in files:
-
-        try:
-
-            sent_message = await bot.send_document(
-
-                chat_id=message.chat.id,
-
-                document=file["file_id"],
-
-                # File name as caption
-                caption=file.get(
-                    "file_name",
-                    ""
-                )
-            )
-
-
-            # Add file message
-            # to delete list
-            messages_to_delete.append(
-                sent_message.message_id
-            )
-
-
-        except Exception as e:
-
-            print(
-                "File send error:",
-                e
-            )
-
-
-    # =========================
-    # Auto-delete information
-    # =========================
-
-    info_message = await message.answer(
-
-        "ℹ️ <b>Auto-Delete Information</b>\n\n"
-
-        "📁 All files sent above will be "
-        "<b>automatically deleted after 5 minutes.</b>\n\n"
-
-        "📥 Please download/save the files "
-        "before they are deleted.",
-
-        parse_mode="HTML"
     )
 
 
-    messages_to_delete.append(
-        info_message.message_id
+    await message.answer(
+
+        "📦 <b>Available Files</b>\n\n"
+
+        "📄 Select a file below "
+        "to download it.",
+
+        parse_mode="HTML",
+
+        reply_markup=keyboard
+
     )
 
 
-    # =========================
-    # All files sent
-    # =========================
+# =========================
+# Pagination Callback
+# =========================
 
-    done_message = await message.answer(
-        "✅ All files sent."
-    )
+@router.callback_query(
+    lambda query:
+        query.data.startswith("page:")
+)
+async def pagination_handler(
+    query: CallbackQuery
+):
 
+    try:
 
-    messages_to_delete.append(
-        done_message.message_id
-    )
-
-
-    # =========================
-    # Delete everything
-    # after 5 minutes
-    # =========================
-
-    asyncio.create_task(
-
-        delete_batch_messages(
-
-            message.chat.id,
-
-            messages_to_delete
+        _, code, page_str = (
+            query.data.split(":")
         )
+
+        page = int(page_str)
+
+    except Exception:
+
+        await query.answer(
+            "❌ Invalid page.",
+            show_alert=True
+        )
+
+        return
+
+
+    # =========================
+    # Find Batch
+    # =========================
+
+    batch = batches.find_one({
+
+        "code": code
+
+    })
+
+
+    if not batch:
+
+        await query.answer(
+
+            "❌ Batch not found.",
+
+            show_alert=True
+
+        )
+
+        return
+
+
+    files = batch.get(
+        "files",
+        []
     )
+
+
+    if not files:
+
+        await query.answer(
+
+            "❌ No files found.",
+
+            show_alert=True
+
+        )
+
+        return
+
+
+    # =========================
+    # Validate Page
+    # =========================
+
+    total_pages = (
+
+        (len(files) + FILES_PER_PAGE - 1)
+        // FILES_PER_PAGE
+
+    )
+
+
+    if page < 0 or page >= total_pages:
+
+        await query.answer(
+
+            "❌ Invalid page.",
+
+            show_alert=True
+
+        )
+
+        return
+
+
+    # =========================
+    # Update Keyboard
+    # =========================
+
+    keyboard = create_file_keyboard(
+
+        code=code,
+
+        files=files,
+
+        page=page
+
+    )
+
+
+    try:
+
+        await query.message.edit_reply_markup(
+
+            reply_markup=keyboard
+
+        )
+
+    except Exception as e:
+
+        print(
+            "Pagination error:",
+            e
+        )
+
+
+    await query.answer()
+
+
+# =========================
+# Page Info Button
+# =========================
+
+@router.callback_query(
+    lambda query:
+        query.data == "page_info"
+)
+async def page_info_handler(
+    query: CallbackQuery
+):
+
+    await query.answer(
+        "📄 Select a file to download it.",
+        show_alert=False
+    )
+
+
+# =========================
+# File Button Callback
+# =========================
+
+@router.callback_query(
+    lambda query:
+        query.data.startswith("file:")
+)
+async def file_callback_handler(
+    query: CallbackQuery
+):
+
+    try:
+
+        _, code, index_str = (
+            query.data.split(":")
+        )
+
+        index = int(index_str)
+
+    except Exception:
+
+        await query.answer(
+
+            "❌ Invalid file.",
+
+            show_alert=True
+
+        )
+
+        return
+
+
+    # =========================
+    # Find Batch
+    # =========================
+
+    batch = batches.find_one({
+
+        "code": code
+
+    })
+
+
+    if not batch:
+
+        await query.answer(
+
+            "❌ Batch not found.",
+
+            show_alert=True
+
+        )
+
+        return
+
+
+    files = batch.get(
+        "files",
+        []
+    )
+
+
+    # =========================
+    # Validate File Index
+    # =========================
+
+    if index < 0 or index >= len(files):
+
+        await query.answer(
+
+            "❌ File not found.",
+
+            show_alert=True
+
+        )
+
+        return
+
+
+    file = files[index]
+
+
+    file_id = file.get(
+        "file_id"
+    )
+
+
+    file_name = file.get(
+
+        "file_name",
+
+        "Unnamed file"
+
+    )
+
+
+    if not file_id:
+
+        await query.answer(
+
+            "❌ File ID missing.",
+
+            show_alert=True
+
+        )
+
+        return
+
+
+    # Stop Telegram loading animation
+    await query.answer()
+
+
+    # =========================
+    # Send Selected File
+    # =========================
+
+    try:
+
+        sent_message = await bot.send_document(
+
+            chat_id=query.message.chat.id,
+
+            document=file_id,
+
+            caption=(
+
+                f"📄 {file_name}\n\n"
+
+                "⏳ This file will be "
+                "automatically deleted "
+                "after 5 minutes.\n"
+
+                "📥 Please download/save "
+                "it before deletion."
+
+            )
+
+        )
+
+
+        # =========================
+        # Schedule Auto Delete
+        # =========================
+
+        asyncio.create_task(
+
+            delete_file_later(
+
+                query.message.chat.id,
+
+                sent_message.message_id
+
+            )
+
+        )
+
+
+    except Exception as e:
+
+        print(
+
+            "File send error:",
+
+            e
+
+        )
+
+        await bot.send_message(
+
+            chat_id=query.message.chat.id,
+
+            text=(
+
+                "❌ Failed to send the file.\n\n"
+
+                "Please try again."
+
+            )
+
+        )
 
 
 # =========================
@@ -254,12 +672,17 @@ async def batch_handler(message: Message):
     user_id = message.from_user.id
 
 
-    # Admin only
+    # =========================
+    # Admin Only
+    # =========================
+
     if str(user_id) != os.getenv("ADMIN_ID"):
 
         await message.answer(
+
             "❌ You are not authorized "
             "to use /batch."
+
         )
 
         return
@@ -274,6 +697,7 @@ async def batch_handler(message: Message):
 
         "Send multiple files and when "
         "finished use /finish."
+
     )
 
 
@@ -294,6 +718,7 @@ async def finish_handler(message: Message):
             "❌ No active batch.\n\n"
 
             "Use /batch first."
+
         )
 
         return
@@ -309,12 +734,16 @@ async def finish_handler(message: Message):
             "❌ No files received.\n\n"
 
             "Send at least one file."
+
         )
 
         return
 
 
-    # Generate share code
+    # =========================
+    # Generate Share Code
+    # =========================
+
     code = secrets.token_urlsafe(8)
 
 
@@ -328,28 +757,45 @@ async def finish_handler(message: Message):
 
         "created_at":
             datetime.now(timezone.utc)
+
     }
 
 
+    # =========================
     # Save to MongoDB
+    # =========================
+
     batches.insert_one(
         batch_data
     )
 
 
-    # Clear active batch
+    # =========================
+    # Clear Active Batch
+    # =========================
+
     del active_batches[user_id]
 
 
-    # Get bot username
+    # =========================
+    # Get Bot Username
+    # =========================
+
     me = await bot.get_me()
 
 
-    # Share link
+    # =========================
+    # Share Link
+    # =========================
+
     share_link = (
+
         f"https://t.me/"
+
         f"{me.username}"
+
         f"?start={code}"
+
     )
 
 
@@ -360,7 +806,9 @@ async def finish_handler(message: Message):
         f"📦 Files: {len(files)}\n\n"
 
         f"🔗 Share Link:\n"
+
         f"{share_link}"
+
     )
 
 
@@ -374,55 +822,88 @@ async def stats_handler(message: Message):
     user_id = message.from_user.id
 
 
-    # Admin only
+    # =========================
+    # Admin Only
+    # =========================
+
     if str(user_id) != os.getenv("ADMIN_ID"):
 
         await message.answer(
+
             "❌ You are not authorized "
             "to use /stats."
+
         )
 
         return
 
 
-    # Total batches
+    # =========================
+    # Total Batches
+    # =========================
+
     total_batches = (
+
         batches.count_documents({})
+
     )
 
 
-    # Total files
+    # =========================
+    # Total Files
+    # =========================
+
     pipeline = [
 
         {
+
             "$unwind": "$files"
+
         },
 
         {
+
             "$count": "total"
+
         }
+
     ]
 
 
     result = list(
+
         batches.aggregate(
+
             pipeline
+
         )
+
     )
 
 
     total_files = (
+
         result[0]["total"]
+
         if result
+
         else 0
+
     )
 
 
-    # Unique users
+    # =========================
+    # Unique Users
+    # =========================
+
     unique_users = len(
+
         batches.distinct(
+
             "user_id"
+
         )
+
     )
 
 
@@ -439,6 +920,7 @@ async def stats_handler(message: Message):
         f"{total_files}",
 
         parse_mode="HTML"
+
     )
 
 
@@ -452,19 +934,26 @@ async def file_handler(message: Message):
     user_id = message.from_user.id
 
 
-    # No active batch
+    # =========================
+    # No Active Batch
+    # =========================
+
     if user_id not in active_batches:
 
         return
 
 
-    # Only documents
+    # =========================
+    # Only Documents
+    # =========================
+
     if not message.document:
 
         await message.answer(
 
             "⚠️ Please send the file "
             "as a document."
+
         )
 
         return
@@ -486,17 +975,25 @@ async def file_handler(message: Message):
 
         "mime_type":
             document.mime_type
+
     }
 
 
-    # Add file
+    # =========================
+    # Add File
+    # =========================
+
     active_batches[user_id].append(
+
         file_data
+
     )
 
 
     count = len(
+
         active_batches[user_id]
+
     )
 
 
@@ -509,6 +1006,7 @@ async def file_handler(message: Message):
         f"📦 Files in batch: {count}\n\n"
 
         f"Send another file or /finish"
+
     )
 
 
@@ -519,7 +1017,10 @@ async def file_handler(message: Message):
 app = FastAPI()
 
 
-# Health check
+# =========================
+# Health Check
+# =========================
+
 @app.get("/")
 async def health():
 
@@ -529,6 +1030,7 @@ async def health():
 
         "service":
             "Telegram File Share Bot"
+
     }
 
 
@@ -541,18 +1043,24 @@ async def startup():
 
     # Remove webhook
     await bot.delete_webhook(
+
         drop_pending_updates=True
+
     )
 
 
     # Start polling
     asyncio.create_task(
+
         dp.start_polling(bot)
+
     )
 
 
     print(
+
         "🤖 Bot polling started"
+
     )
 
 
