@@ -227,7 +227,7 @@ async def start_handler(message: Message):
             [
                 InlineKeyboardButton(
                     text="📢 Jᴏɪɴ Tᴏ Cʜᴀɴɴᴇʟ",
-                    url=https://t.me/+ff_msXbxJVs3MThl,
+                    url="https://t.me/+ff_msXbxJVs3MThl",
                 )
             ],
             [
