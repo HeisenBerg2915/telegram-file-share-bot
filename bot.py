@@ -287,12 +287,19 @@ async def start_handler(message: Message):
         page=0
     )
 
-    await message.answer(
-        "📦 <b>Available Files</b>\n\n"
-        "📄 Select a file below to download it.",
-        parse_mode="HTML",
-        reply_markup=keyboard
+    sent_message = await message.answer(
+    "📦 <b>Available Files</b>\n\n"
+    "📄 Select a file below to download it.",
+    parse_mode="HTML",
+    reply_markup=keyboard
+)
+
+asyncio.create_task(
+    delete_file_later(
+        message.chat.id,
+        sent_message.message_id
     )
+)
     
     # =========================
     # Normal /start
