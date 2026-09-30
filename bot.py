@@ -146,6 +146,36 @@ async def finish_handler(message: Message):
         f"🔗 Share Link:\n{share_link}"
     )
 
+# /stats
+@router.message(Command("stats"))
+async def stats_handler(message: Message):
+    user_id = message.from_user.id
+
+    # Admin only
+    if str(user_id) != os.getenv("ADMIN_ID"):
+        await message.answer("❌ You are not authorized to use /stats.")
+        return
+
+    total_batches = batches.count_documents({})
+
+    pipeline = [
+        {"$unwind": "$files"},
+        {"$count": "total"}
+    ]
+
+    result = list(batches.aggregate(pipeline))
+    total_files = result[0]["total"] if result else 0
+
+    unique_users = len(batches.distinct("user_id"))
+
+    await message.answer(
+        "📊 <b>Bot Statistics</b>\n\n"
+        f"👥 Users: {unique_users}\n"
+        f"📦 Total Batches: {total_batches}\n"
+        f"📁 Total Files: {total_files}",
+        parse_mode="HTML"
+    )
+
 
 # Receive files
 @router.message()
