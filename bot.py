@@ -25,10 +25,6 @@ if not BOT_TOKEN:
 if not MONGO_URI:
     raise RuntimeError("MONGO_URI is missing")
 
-if not WEBHOOK_URL:
-    raise RuntimeError("WEBHOOK_URL is missing")
-
-
 # MongoDB
 mongo = MongoClient(MONGO_URI)
 db = mongo["file_share_bot"]
