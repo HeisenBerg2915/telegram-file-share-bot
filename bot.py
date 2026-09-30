@@ -222,7 +222,7 @@ async def start_handler(message: Message):
         await message.answer("❌ No files found.")
         return
 
-        user_id = message.from_user.id
+    user_id = message.from_user.id
 
     # Check if user is already a member of the request channel
     try:
@@ -271,8 +271,7 @@ async def start_handler(message: Message):
         parse_mode="HTML",
         reply_markup=keyboard,
     )
-
-
+    
 # ============================================================
 # JOIN REQUEST HANDLER
 # ============================================================
