@@ -1,0 +1,5 @@
+aiogram
+fastapi
+uvicorn[standard]
+pymongo
+python-dotenv
