@@ -207,7 +207,7 @@ async def webhook(request: Request):
 
 @app.on_event("startup")
 async def startup():
-    webhook_url = f"{WEBHOOK_URL}/webhook"
+    webhook_url = f"{WEBHOOK_URL.rstrip('/')}/webhook"
 
     await bot.set_webhook(
         url=webhook_url,
