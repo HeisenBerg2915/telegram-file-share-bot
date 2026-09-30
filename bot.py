@@ -238,10 +238,60 @@ def create_file_keyboard(
 
 @router.message(Command("start"))
 async def start_handler(message: Message):
-
     parts = message.text.split(maxsplit=1)
 
+    if len(parts) == 1:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="👥 Jᴏɪɴ ᴏʀᴜ Gʀᴏᴜᴘ 👥",
+                        url="https://t.me/+Ik14BdOewjQzYjI1"
+                    ),
+                    InlineKeyboardButton(
+                        text="📌 Jᴏɪɴ Uᴘᴅᴀᴛᴇ Cʜᴀɴɴᴇʟ 📌",
+                        url="https://t.me/Clmainchannel"
+                    )
+                ]
+            ]
+        )
 
+        await message.answer(
+            "👋 <b>Welcome!</b>\n\n"
+            "🤖 <b>ഞാൻ ഒരു 𝐅𝐢𝐥𝐞 𝐒𝐡𝐚𝐫𝐢𝐧𝐠 𝐁𝐨𝐭 ആണ്.</b>\n"
+            "🎬 <b>ചിത്രലോകം ഗ്രൂപ്പിന് വേണ്ടി മാത്രം എന്നെ നിർമ്മിച്ചിരിക്കുന്നു. ❤️</b>",
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+        return
+
+    code = parts[1]
+
+    batch = batches.find_one({"code": code})
+
+    if not batch:
+        await message.answer("❌ Batch not found.")
+        return
+
+    files = batch.get("files", [])
+
+    if not files:
+        await message.answer("❌ No files found.")
+        return
+
+    keyboard = create_file_keyboard(
+        code=code,
+        files=files,
+        page=0
+    )
+
+    await message.answer(
+        "📦 <b>Available Files</b>\n\n"
+        "📄 Select a file below to download it.",
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
+    
     # =========================
     # Normal /start
     # =========================
