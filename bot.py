@@ -1,4 +1,5 @@
 import os
+import asyncio
 import secrets
 from datetime import datetime, timezone
 
@@ -93,6 +94,10 @@ async def start_handler(message: Message):
 @router.message(Command("batch"))
 async def batch_handler(message: Message):
     user_id = message.from_user.id
+
+    if str(user_id) != os.getenv("ADMIN_ID"):
+        await message.answer("❌ You are not authorized to use /batch.")
+        return
 
     active_batches[user_id] = []
 
