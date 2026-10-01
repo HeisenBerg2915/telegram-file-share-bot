@@ -36,6 +36,7 @@ if not MONGO_URI:
 mongo = MongoClient(MONGO_URI)
 db = mongo["file_share_bot"]
 batches = db["batches"]
+connected_groups = db["connected_groups"]
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -270,6 +271,38 @@ async def start_handler(message: Message):
         "<b>✅ Request അയച്ച ശേഷം TRY AGAIN അമർത്തുക.</b>",
         parse_mode="HTML",
         reply_markup=keyboard,
+    )
+
+# ============================================================
+# CONNECT GROUP
+# ============================================================
+
+@router.message(Command("connect"))
+async def connect_handler(message: Message):
+
+    # Only groups
+    if message.chat.type not in ("group", "supergroup"):
+        await message.answer(
+            "❌ ഈ command group-ൽ മാത്രം ഉപയോഗിക്കാം."
+        )
+        return
+
+    # Save group
+    connected_groups.update_one(
+        {"chat_id": message.chat.id},
+        {
+            "$set": {
+                "chat_id": message.chat.id,
+                "group_name": message.chat.title,
+                "connected_at": datetime.now(timezone.utc),
+            }
+        },
+        upsert=True,
+    )
+
+    await message.answer(
+        "✅ <b>Gʀᴏᴜᴘ Cᴏɴɴᴇᴄᴛᴇᴅ</b>",
+        parse_mode="HTML",
     )
     
 # ============================================================
