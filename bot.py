@@ -27,6 +27,9 @@ ADMIN_ID = os.getenv("ADMIN_ID")
 REQUEST_CHANNEL_ID = -1004366581317
 REQUEST_CHANNEL_LINK = "https://t.me/+TBEZZOyLdPdjODg1"
 
+# /connect അനുവദിച്ച Group ID
+CONNECTED_GROUP_ID = -1002670818803
+
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is missing")
 
@@ -280,14 +283,21 @@ async def start_handler(message: Message):
 @router.message(Command("connect"))
 async def connect_handler(message: Message):
 
-    # Only groups
+    # Group / Supergroup മാത്രം
     if message.chat.type not in ("group", "supergroup"):
         await message.answer(
             "❌ ഈ command group-ൽ മാത്രം ഉപയോഗിക്കാം."
         )
         return
 
-    # Save group
+    # Admin അനുവദിച്ച Group ID ആണോ?
+    if message.chat.id != CONNECTED_GROUP_ID:
+        await message.answer(
+            "❌ ഈ group-ൽ bot connect ചെയ്യാൻ അനുവദിച്ചിട്ടില്ല."
+        )
+        return
+
+    # Connected group save ചെയ്യുക
     connected_groups.update_one(
         {"chat_id": message.chat.id},
         {
