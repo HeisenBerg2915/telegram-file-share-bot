@@ -1103,13 +1103,11 @@ async def filter_search_handler(message: Message):
         reply_markup = InlineKeyboardMarkup(
             inline_keyboard=keyboard
         )
-
-    # --------------------------------------------------------
-    # PHOTO RESULT
-    # --------------------------------------------------------
+# --------------------------------------------------
+# PHOTO RESULT
+# --------------------------------------------------
 
 if photo_file_id:
-
     if caption:
         caption = f"<blockquote><b>{caption}</b></blockquote>"
 
@@ -1120,22 +1118,21 @@ if photo_file_id:
         parse_mode="HTML",
         reply_markup=reply_markup,
     )
-    
-    # --------------------------------------------------------
+
+else:
+    # --------------------------------------------------
     # TEXT RESULT
     # Existing text-only filter support
-    # --------------------------------------------------------
+    # --------------------------------------------------
 
-    else:
-
-        result_message = await message.answer(
-            f"🔎 <b>Search Results For: {keyword}</b>\n\n"
-            f"{caption}\n\n"
-            f"📁 Results: <b>{len(keyboard)}</b>",
-            parse_mode="HTML",
-            reply_markup=reply_markup,
-        )
-
+    result_message = await message.answer(
+        f"🔎 <b>Search Results For: {keyword}</b>\n\n"
+        f"{caption}\n\n"
+        f"📁 Results: <b>{len(keyboard)}</b>",
+        parse_mode="HTML",
+        reply_markup=reply_markup,
+    )
+    
     # --------------------------------------------------------
     # DELETE SEARCH RESULT AFTER 5 MINUTES
     # --------------------------------------------------------
