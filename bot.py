@@ -1093,7 +1093,7 @@ async def filter_search_handler(message: Message):
 
         keyboard.append([
             InlineKeyboardButton(
-                text=f"🎬 {name}",
+                text=f"{name}",
                 url=url,
             )
         ])
@@ -1114,7 +1114,7 @@ async def filter_search_handler(message: Message):
         # Keep the poster caption inside Telegram's blockquote
         # style, matching the poster/result format.
         display_caption = caption or f"🔎 Search Results For: {keyword}"
-        display_caption = f"<blockquote>{html.escape(display_caption)}</blockquote>"
+        display_caption = f"<blockquote><b>{html.escape(display_caption)}</b></blockquote>"
 
         result_message = await bot.send_photo(
             chat_id=message.chat.id,
