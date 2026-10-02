@@ -1075,7 +1075,6 @@ async def filter_search_handler(message: Message):
 
     buttons = filter_data.get("buttons", [])
     caption = filter_data.get("caption", "")
-    caption = f'<blockquote>{caption}</blockquote>'
     photo_file_id = filter_data.get("photo_file_id")
 
     # --------------------------------------------------------
@@ -1110,6 +1109,8 @@ async def filter_search_handler(message: Message):
     # --------------------------------------------------------
 
     if photo_file_id:
+
+        caption = f"<blockquote>{caption}</blockquote>"
 
         result_message = await bot.send_photo(
             chat_id=message.chat.id,
