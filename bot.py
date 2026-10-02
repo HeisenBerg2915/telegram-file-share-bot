@@ -40,6 +40,7 @@ mongo = MongoClient(MONGO_URI)
 db = mongo["file_share_bot"]
 batches = db["batches"]
 connected_groups = db["connected_groups"]
+filters_collection = db["filters"]
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -65,6 +66,269 @@ async def delete_file_later(chat_id, message_id):
         print(f"Auto-deleted message: {message_id}")
     except Exception as e:
         print(f"Auto-delete error for {message_id}: {e}")
+
+# ============================================================
+# FILTER SYSTEM
+# ============================================================
+
+async def filter_admin_only(message: Message):
+    admin_id = os.getenv("ADMIN_ID")
+
+    if not admin_id or str(message.from_user.id) != str(admin_id):
+        await message.answer(
+            "🚫 <b>Access Denied</b>\n\n"
+            "This command is available for admins only.",
+            parse_mode="HTML",
+        )
+        return False
+
+    return True
+
+
+def parse_filter_buttons(text):
+    """
+    Example:
+    [Leo 2023](buttonurl:https://example.com)
+    """
+
+    import re
+
+    pattern = r"\[([^\]]+)\]\(buttonurl:([^)]+)\)"
+
+    matches = re.findall(pattern, text or "")
+
+    return [
+        {
+            "name": name.strip(),
+            "url": url.strip(),
+        }
+        for name, url in matches
+    ]
+
+
+# ============================================================
+# /filter
+# ============================================================
+
+@router.message(Command("filter"))
+async def filter_handler(message: Message):
+
+    if not await filter_admin_only(message):
+        return
+
+    # /filter keyword
+    parts = message.text.split(maxsplit=1)
+
+    if len(parts) < 2:
+        await message.answer(
+            "❌ <b>Usage:</b>\n\n"
+            "<code>/filter leo</code>\n\n"
+            "Reply to a message containing:\n"
+            "<code>[Leo 2023](buttonurl:link)</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    keyword = parts[1].strip().lower()
+
+    # /filter must be a reply
+    if not message.reply_to_message:
+        await message.answer(
+            "❌ Please reply to the message containing the "
+            "filter buttons."
+        )
+        return
+
+    source_message = message.reply_to_message
+
+    buttons = parse_filter_buttons(
+        source_message.text or source_message.caption or ""
+    )
+
+    if not buttons:
+        await message.answer(
+            "❌ No valid filter buttons found.\n\n"
+            "Use this format:\n\n"
+            "<code>[Leo 2023](buttonurl:link)</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    filters_collection.update_one(
+        {"keyword": keyword},
+        {
+            "$set": {
+                "keyword": keyword,
+                "buttons": buttons,
+                "created_at": datetime.now(timezone.utc),
+                "created_by": message.from_user.id,
+            }
+        },
+        upsert=True,
+    )
+
+    await message.answer(
+        "✅ <b>Filter Created</b>\n\n"
+        f"🔎 Keyword: <code>{keyword}</code>\n"
+        f"🔘 Results: <b>{len(buttons)}</b>",
+        parse_mode="HTML",
+    )
+
+
+# ============================================================
+# /filters
+# ============================================================
+
+@router.message(Command("filters"))
+async def filters_handler(message: Message):
+
+    if not await filter_admin_only(message):
+        return
+
+    filters = list(
+        filters_collection.find(
+            {},
+            {
+                "_id": 0,
+                "keyword": 1,
+                "buttons": 1,
+            }
+        ).sort("keyword", 1)
+    )
+
+    if not filters:
+        await message.answer(
+            "📂 <b>No filters found.</b>",
+            parse_mode="HTML",
+        )
+        return
+
+    text = "📋 <b>Available Filters</b>\n\n"
+
+    for item in filters:
+        keyword = item.get("keyword", "")
+        count = len(item.get("buttons", []))
+
+        text += (
+            f"🔎 <code>{keyword}</code> "
+            f"— {count} result(s)\n"
+        )
+
+    await message.answer(
+        text,
+        parse_mode="HTML",
+    )
+
+
+# ============================================================
+# /deletefilter
+# ============================================================
+
+@router.message(Command("deletefilter"))
+async def delete_filter_handler(message: Message):
+
+    if not await filter_admin_only(message):
+        return
+
+    parts = message.text.split(maxsplit=1)
+
+    if len(parts) < 2:
+        await message.answer(
+            "❌ <b>Usage:</b>\n\n"
+            "<code>/deletefilter leo</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    keyword = parts[1].strip().lower()
+
+    result = filters_collection.delete_one(
+        {"keyword": keyword}
+    )
+
+    if result.deleted_count == 0:
+        await message.answer(
+            f"❌ Filter <code>{keyword}</code> not found.",
+            parse_mode="HTML",
+        )
+        return
+
+    await message.answer(
+        f"✅ Filter <code>{keyword}</code> deleted.",
+        parse_mode="HTML",
+    )
+
+
+# ============================================================
+# /alldeletefilters
+# ============================================================
+
+@router.message(Command("alldeletefilters"))
+async def delete_all_filters_handler(message: Message):
+
+    if not await filter_admin_only(message):
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ YES, DELETE ALL",
+                    callback_data="delete_all_filters:yes",
+                ),
+                InlineKeyboardButton(
+                    text="❌ CANCEL",
+                    callback_data="delete_all_filters:no",
+                ),
+            ]
+        ]
+    )
+
+    await message.answer(
+        "⚠️ <b>Delete All Filters?</b>\n\n"
+        "This will permanently delete all filters.",
+        parse_mode="HTML",
+        reply_markup=keyboard,
+    )
+
+
+# ============================================================
+# DELETE ALL FILTERS CONFIRMATION
+# ============================================================
+
+@router.callback_query(
+    lambda query: (
+        query.data
+        and query.data.startswith("delete_all_filters:")
+    )
+)
+async def delete_all_filters_callback(query: CallbackQuery):
+
+    admin_id = os.getenv("ADMIN_ID")
+
+    if not admin_id or str(query.from_user.id) != str(admin_id):
+        await query.answer(
+            "🚫 Admin only.",
+            show_alert=True,
+        )
+        return
+
+    action = query.data.split(":", 1)[1]
+
+    if action == "no":
+        await query.message.delete()
+        await query.answer("Cancelled.")
+        return
+
+    result = filters_collection.delete_many({})
+
+    await query.message.edit_text(
+        "✅ <b>All filters deleted.</b>\n\n"
+        f"🗑️ Deleted: {result.deleted_count}",
+        parse_mode="HTML",
+    )
+
+    await query.answer("Done.")
 
 def format_file_size(size):
     if not size:
