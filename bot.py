@@ -165,6 +165,29 @@ async def send_batch_result(chat_id, code):
         )
         return False
 
+    import re
+
+    first_file_name = files[0].get("file_name", "Unknown")
+
+    year_match = re.search(
+        r"\b(19\d{2}|20\d{2})\b",
+        first_file_name
+    )
+
+    year = year_match.group(1) if year_match else "N/A"
+
+    movie_name = re.sub(
+        r"\.(mp4|mkv|avi|mov|webm)$",
+        "",
+        first_file_name,
+        flags=re.IGNORECASE
+    )
+
+    if year_match:
+        movie_name = movie_name.replace(year, "").strip()
+
+    movie_name = re.sub(r"[_\.]+", " ", movie_name).strip()
+
     keyboard = create_file_keyboard(
         code=code,
         files=files,
