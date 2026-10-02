@@ -175,16 +175,12 @@ async def send_batch_result(chat_id, code):
     chat_id=chat_id,
     text=(
         f"<blockquote>{movie_name} ({year})</blockquote>\n\n"
-        "<b>🎬  ʏᴏᴜʀ ʀᴇϙᴜᴇsᴛᴇᴅ ғɪʟᴇs ᴀʀᴇ ʀᴇᴀᴅʏ!</b>\n\n"
-        "<b>📄 താഴെ നൽകിയിരിക്കുന്ന ʙᴜᴛᴛᴏɴ-ൽ നിന്ന് "
+        "<b>🎬 Your requested files are ready!</b>\n\n"
+        "<b>📄 താഴെ നൽകിയിരിക്കുന്ന button-ൽ നിന്ന് "
         "നിങ്ങൾക്ക് ആവശ്യമുള്ള file തിരഞ്ഞെടുക്കാം.</b>\n\n"
         "🔗 <a href='https://t.me/Clmainchannel'>"
-        "<b>ᴛᴇᴀᴍ ചിത്രലോകം™️</b></a>"
+        "<b>Team ചിത്രലോകം™️</b></a>"
     ),
-    parse_mode="HTML",
-    reply_markup=keyboard
-    )
-        
     parse_mode="HTML",
     reply_markup=keyboard
     )
