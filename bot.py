@@ -761,19 +761,23 @@ async def file_handler(message: Message):
     if user_id not in active_batches:
         return
 
-    if not message.document:
+    media = message.document or message.video
+
+    if not media:
         await message.answer(
-            "⚠️ Please send the file as a document."
+            "⚠️ Please send a document or video."
         )
         return
 
-    document = message.document
-
     file_data = {
-        "file_id": document.file_id,
-        "file_name": document.file_name,
-        "file_size": document.file_size,
-        "mime_type": document.mime_type,
+        "file_id": media.file_id,
+        "file_name": (
+            media.file_name
+            if message.document and media.file_name
+            else f"video_{len(active_batches[user_id]) + 1}.mp4"
+        ),
+        "file_size": media.file_size,
+        "mime_type": media.mime_type,
     }
 
     active_batches[user_id].append(file_data)
@@ -782,11 +786,11 @@ async def file_handler(message: Message):
 
     await message.answer(
         f"✅ File added\n\n"
-        f"📄 {document.file_name}\n"
+        f"📄 {file_data['file_name']}\n"
         f"📦 Files in batch: {count}\n\n"
         f"Send another file or /finish"
     )
-
+    
 
 # ============================================================
 # FASTAPI
