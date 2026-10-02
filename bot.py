@@ -105,7 +105,6 @@ def parse_filter_buttons(text):
         for name, url in matches
     ]
 
-
 # ============================================================
 # /filter
 # ============================================================
@@ -123,8 +122,8 @@ async def filter_handler(message: Message):
         await message.answer(
             "❌ <b>Usage:</b>\n\n"
             "<code>/filter leo</code>\n\n"
-            "Reply to a message containing:\n"
-            "<code>[Leo 2023](buttonurl:link)</code>",
+            "Reply to a photo/message containing:\n"
+            "<code>[Leo 2023](buttonurl:https://example.com)</code>",
             parse_mode="HTML",
         )
         return
@@ -134,35 +133,68 @@ async def filter_handler(message: Message):
     # /filter must be a reply
     if not message.reply_to_message:
         await message.answer(
-            "❌ Please reply to the message containing the "
-            "filter buttons."
+            "❌ Please reply to the message you want to use for the filter."
         )
         return
 
     source_message = message.reply_to_message
 
-    buttons = parse_filter_buttons(
-        source_message.text or source_message.caption or ""
+    # Caption / text
+    source_text = (
+        source_message.caption
+        or source_message.text
+        or ""
     )
 
-    if not buttons:
+    # Find buttons
+    buttons = parse_filter_buttons(source_text)
+
+    # Remove button syntax from displayed caption
+    import re
+
+    clean_caption = re.sub(
+        r"\[([^\]]+)\]\(buttonurl:([^)]+)\)",
+        "",
+        source_text
+    ).strip()
+
+    # --------------------------------------------------------
+    # PHOTO FILTER
+    # --------------------------------------------------------
+
+    photo_file_id = None
+
+    if source_message.photo:
+        # Highest quality photo
+        photo_file_id = source_message.photo[-1].file_id
+
+    # --------------------------------------------------------
+    # Must have either photo or text
+    # --------------------------------------------------------
+
+    if not photo_file_id and not clean_caption:
         await message.answer(
-            "❌ No valid filter buttons found.\n\n"
-            "Use this format:\n\n"
-            "<code>[Leo 2023](buttonurl:link)</code>",
-            parse_mode="HTML",
+            "❌ The replied message has no photo or text."
         )
         return
+
+    # --------------------------------------------------------
+    # Save filter
+    # --------------------------------------------------------
+
+    filter_data = {
+        "keyword": keyword,
+        "buttons": buttons,
+        "caption": clean_caption,
+        "photo_file_id": photo_file_id,
+        "created_at": datetime.now(timezone.utc),
+        "created_by": message.from_user.id,
+    }
 
     filters_collection.update_one(
         {"keyword": keyword},
         {
-            "$set": {
-                "keyword": keyword,
-                "buttons": buttons,
-                "created_at": datetime.now(timezone.utc),
-                "created_by": message.from_user.id,
-            }
+            "$set": filter_data
         },
         upsert=True,
     )
@@ -170,6 +202,7 @@ async def filter_handler(message: Message):
     await message.answer(
         "✅ <b>Filter Created</b>\n\n"
         f"🔎 Keyword: <code>{keyword}</code>\n"
+        f"🖼️ Poster: {'Yes' if photo_file_id else 'No'}\n"
         f"🔘 Results: <b>{len(buttons)}</b>",
         parse_mode="HTML",
     )
@@ -1041,9 +1074,12 @@ async def filter_search_handler(message: Message):
         return
 
     buttons = filter_data.get("buttons", [])
+    caption = filter_data.get("caption", "")
+    photo_file_id = filter_data.get("photo_file_id")
 
-    if not buttons:
-        return
+    # --------------------------------------------------------
+    # CREATE BUTTONS
+    # --------------------------------------------------------
 
     keyboard = []
 
@@ -1061,27 +1097,52 @@ async def filter_search_handler(message: Message):
             )
         ])
 
-    if not keyboard:
-        return
+    reply_markup = None
 
-    result_message = await message.answer(
-        f"🔎 <b>Search Results For: {keyword}</b>\n\n"
-        f"📁 Results: <b>{len(keyboard)}</b>",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(
+    if keyboard:
+        reply_markup = InlineKeyboardMarkup(
             inline_keyboard=keyboard
-        ),
-    )
+        )
 
-    # Search result മാത്രം 5 minutes കഴിഞ്ഞ് delete ചെയ്യും
+    # --------------------------------------------------------
+    # PHOTO RESULT
+    # --------------------------------------------------------
+
+    if photo_file_id:
+
+        result_message = await bot.send_photo(
+            chat_id=message.chat.id,
+            photo=photo_file_id,
+            caption=caption or f"🔎 Search Results For: {keyword}",
+            reply_markup=reply_markup,
+        )
+
+    # --------------------------------------------------------
+    # TEXT RESULT
+    # Existing text-only filter support
+    # --------------------------------------------------------
+
+    else:
+
+        result_message = await message.answer(
+            f"🔎 <b>Search Results For: {keyword}</b>\n\n"
+            f"{caption}\n\n"
+            f"📁 Results: <b>{len(keyboard)}</b>",
+            parse_mode="HTML",
+            reply_markup=reply_markup,
+        )
+
+    # --------------------------------------------------------
+    # DELETE SEARCH RESULT AFTER 5 MINUTES
+    # --------------------------------------------------------
+
     asyncio.create_task(
         delete_file_later(
             message.chat.id,
-            result_message.message_id,
+            result_message.message_id
         )
     )
-
-
+    
 # ============================================================
 # FILE HANDLER
 # ============================================================
