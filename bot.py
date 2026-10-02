@@ -51,7 +51,7 @@ active_batches = {}
 # User -> batch code waiting for channel request
 pending_access = {}
 
-FILES_PER_PAGE = 4
+FILES_PER_PAGE = 8
 
 
 async def delete_file_later(chat_id, message_id):
@@ -66,6 +66,23 @@ async def delete_file_later(chat_id, message_id):
     except Exception as e:
         print(f"Auto-delete error for {message_id}: {e}")
 
+def format_file_size(size):
+    if not size:
+        return "0 B"
+
+    size = float(size)
+
+    if size >= 1024 ** 3:
+        return f"{size / (1024 ** 3):.2f} GB"
+
+    if size >= 1024 ** 2:
+        return f"{size / (1024 ** 2):.2f} MB"
+
+    if size >= 1024:
+        return f"{size / 1024:.2f} KB"
+
+    return f"{int(size)} B"
+
 
 def create_file_keyboard(code, files, page=0):
     total_files = len(files)
@@ -79,13 +96,17 @@ def create_file_keyboard(code, files, page=0):
 
     for index, file in enumerate(page_files, start=start):
         file_name = file.get("file_name") or "Unnamed file"
+        file_size = format_file_size(file.get("file_size"))
 
-        if len(file_name) > 45:
-            file_name = file_name[:42] + "..."
+        # Filename അധികം നീളുന്നത് ഒഴിവാക്കാൻ
+        max_name_length = 40
+
+        if len(file_name) > max_name_length:
+            file_name = file_name[:max_name_length - 3] + "..."
 
         keyboard.append([
             InlineKeyboardButton(
-                text=f"📄 {file_name}",
+                text=f"[{file_size}] ▷ {file_name}",
                 callback_data=f"file:{code}:{index}",
             )
         ])
@@ -95,7 +116,7 @@ def create_file_keyboard(code, files, page=0):
     if page > 0:
         navigation.append(
             InlineKeyboardButton(
-                text="⬅️ BACK",
+                text="⬅️ ʙᴀᴄᴋ",
                 callback_data=f"page:{code}:{page - 1}",
             )
         )
@@ -103,7 +124,7 @@ def create_file_keyboard(code, files, page=0):
     if page < total_pages - 1:
         navigation.append(
             InlineKeyboardButton(
-                text="NEXT ➡️",
+                text="ɴᴇxᴛ ➡️",
                 callback_data=f"page:{code}:{page + 1}",
             )
         )
