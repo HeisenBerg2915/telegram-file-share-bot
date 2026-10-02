@@ -784,11 +784,11 @@ file_data = {
     "mime_type": media.mime_type,
 }
 
-    active_batches[user_id].append(file_data)
+active_batches[user_id].append(file_data)
 
-    count = len(active_batches[user_id])
+count = len(active_batches[user_id])
 
-    await message.answer(
+ await message.answer(
         f"✅ File added\n\n"
         f"📄 {file_data['file_name']}\n"
         f"📦 Files in batch: {count}\n\n"
