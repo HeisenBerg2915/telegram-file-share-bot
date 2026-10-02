@@ -1108,10 +1108,10 @@ async def filter_search_handler(message: Message):
     # PHOTO RESULT
     # --------------------------------------------------------
 
-    if photo_file_id:
+if photo_file_id:
 
     if caption:
-        caption = f"<blockquote>{caption}</blockquote>"
+        caption = f"<blockquote><b>{caption}</b></blockquote>"
 
     result_message = await bot.send_photo(
         chat_id=message.chat.id,
@@ -1120,7 +1120,7 @@ async def filter_search_handler(message: Message):
         parse_mode="HTML",
         reply_markup=reply_markup,
     )
-
+    
     # --------------------------------------------------------
     # TEXT RESULT
     # Existing text-only filter support
