@@ -769,16 +769,20 @@ async def file_handler(message: Message):
         )
         return
 
-    file_data = {
-        "file_id": media.file_id,
-        "file_name": (
-            media.file_name
-            if message.document and media.file_name
+    
+file_data = {
+    "file_id": media.file_id,
+    "file_name": (
+        getattr(media, "file_name", None)
+        or (
+            message.caption.strip()
+            if message.caption
             else f"video_{len(active_batches[user_id]) + 1}.mp4"
-        ),
-        "file_size": media.file_size,
-        "mime_type": media.mime_type,
-    }
+        )
+    ),
+    "file_size": media.file_size,
+    "mime_type": media.mime_type,
+}
 
     active_batches[user_id].append(file_data)
 
