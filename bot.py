@@ -1110,14 +1110,16 @@ async def filter_search_handler(message: Message):
 
     if photo_file_id:
 
+    if caption:
         caption = f"<blockquote>{caption}</blockquote>"
 
-        result_message = await bot.send_photo(
-            chat_id=message.chat.id,
-            photo=photo_file_id,
-            caption=caption or f"🔎 Search Results For: {keyword}",
-            reply_markup=reply_markup,
-        )
+    result_message = await bot.send_photo(
+        chat_id=message.chat.id,
+        photo=photo_file_id,
+        caption=caption or f"🔎 Search Results For: {keyword}",
+        parse_mode="HTML",
+        reply_markup=reply_markup,
+    )
 
     # --------------------------------------------------------
     # TEXT RESULT
