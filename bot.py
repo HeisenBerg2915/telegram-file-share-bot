@@ -1107,32 +1107,40 @@ async def filter_search_handler(message: Message):
 # PHOTO RESULT
 # --------------------------------------------------
 
-if photo_file_id:
-    if caption:
-        caption = f"<blockquote><b>{caption}</b></blockquote>"
+--------------------------------------------------------
+    # PHOTO RESULT
+    # --------------------------------------------------------
 
-    result_message = await bot.send_photo(
-        chat_id=message.chat.id,
-        photo=photo_file_id,
-        caption=caption or f"🔎 Search Results For: {keyword}",
-        parse_mode="HTML",
-        reply_markup=reply_markup,
-    )
+    if photo_file_id:
 
-else:
-    # --------------------------------------------------
+        # Keep the poster caption inside Telegram's blockquote
+        # style, matching the poster/result format.
+        display_caption = caption or f"🔎 Search Results For: {keyword}"
+        display_caption = f"<blockquote>{html.escape(display_caption)}</blockquote>"
+
+        result_message = await bot.send_photo(
+            chat_id=message.chat.id,
+            photo=photo_file_id,
+            caption=display_caption,
+            parse_mode="HTML",
+            reply_markup=reply_markup,
+        )
+
+    # --------------------------------------------------------
     # TEXT RESULT
     # Existing text-only filter support
-    # --------------------------------------------------
+    # --------------------------------------------------------
 
-    result_message = await message.answer(
-        f"🔎 <b>Search Results For: {keyword}</b>\n\n"
-        f"{caption}\n\n"
-        f"📁 Results: <b>{len(keyboard)}</b>",
-        parse_mode="HTML",
-        reply_markup=reply_markup,
-    )
-    
+    else:
+
+        result_message = await message.answer(
+            f"🔎 <b>Search Results For: {keyword}</b>\n\n"
+            f"{caption}\n\n"
+            f"📁 Results: <b>{len(keyboard)}</b>",
+            parse_mode="HTML",
+            reply_markup=reply_markup,
+        )
+
     # --------------------------------------------------------
     # DELETE SEARCH RESULT AFTER 5 MINUTES
     # --------------------------------------------------------
