@@ -1013,6 +1013,74 @@ async def stats_handler(message: Message):
         parse_mode="HTML",
     )
 
+# ============================================================
+# FILTER SEARCH
+# ============================================================
+
+@router.message(lambda message: message.text is not None)
+async def filter_search_handler(message: Message):
+
+    # Commands ignore ചെയ്യുക
+    if message.text.startswith("/"):
+        return
+
+    # Group / Supergroup മാത്രം
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    keyword = message.text.strip().lower()
+
+    if not keyword:
+        return
+
+    filter_data = filters_collection.find_one(
+        {"keyword": keyword}
+    )
+
+    if not filter_data:
+        return
+
+    buttons = filter_data.get("buttons", [])
+
+    if not buttons:
+        return
+
+    keyboard = []
+
+    for item in buttons:
+        name = item.get("name")
+        url = item.get("url")
+
+        if not name or not url:
+            continue
+
+        keyboard.append([
+            InlineKeyboardButton(
+                text=f"🎬 {name}",
+                url=url,
+            )
+        ])
+
+    if not keyboard:
+        return
+
+    result_message = await message.answer(
+        f"🔎 <b>Search Results For: {keyword}</b>\n\n"
+        f"📁 Results: <b>{len(keyboard)}</b>",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=keyboard
+        ),
+    )
+
+    # Search result മാത്രം 5 minutes കഴിഞ്ഞ് delete ചെയ്യും
+    asyncio.create_task(
+        delete_file_later(
+            message.chat.id,
+            result_message.message_id,
+        )
+    )
+
 
 # ============================================================
 # FILE HANDLER
