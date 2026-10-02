@@ -1074,7 +1074,7 @@ async def filter_search_handler(message: Message):
         return
 
     buttons = filter_data.get("buttons", [])
-    caption = filter_data.get("caption", "")
+    caption = filter_data.get("<blockquote>caption</blockquote>", "")
     photo_file_id = filter_data.get("photo_file_id")
 
     # --------------------------------------------------------
@@ -1092,7 +1092,7 @@ async def filter_search_handler(message: Message):
 
         keyboard.append([
             InlineKeyboardButton(
-                text=f"🎬 {name}",
+                text=f"{name}",
                 url=url,
             )
         ])
