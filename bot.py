@@ -1122,7 +1122,7 @@ async def filter_search_handler(message: Message):
             caption=display_caption,
             parse_mode="HTML",
             reply_markup=reply_markup,
-            reply_to_message_id=message.id,
+            reply_to_message_id=message.message_id,
         )
 
     # --------------------------------------------------------
@@ -1138,7 +1138,7 @@ async def filter_search_handler(message: Message):
             f"📁 Results: <b>{len(keyboard)}</b>",
             parse_mode="HTML",
             reply_markup=reply_markup,
-            reply_to_message_id=message.id,
+            reply_to_message_id=message.message_id,
         )
 
     # --------------------------------------------------------
