@@ -505,14 +505,7 @@ async def send_batch_result(chat_id, code):
     parse_mode="HTML",
     reply_markup=keyboard
     )
-
-    asyncio.create_task(
-        delete_file_later(
-            chat_id,
-            sent_message.message_id,
-        )
-    )
-
+    
     return True
 
 
@@ -612,7 +605,7 @@ async def start_handler(message: Message):
     await message.answer(
         "<b>🔒 Cʜᴀɴɴᴇʟ Jᴏɪɴ Rᴇǫᴜɪʀᴇᴅ</b>\n\n"
         "<b>📢 ആദ്യം താഴെയുള്ള channel-ൽ Join Request അയക്കുക.</b>\n\n"
-        "<b>✅ Request അയച്ച ശേഷം TRY AGAIN അമർത്തുക.</b>",
+        "<b>✅ Request അയച്ച ശേഷം TRY AGAIN അമർത്തുക അപ്പോൾ ഫയൽ ലഭിക്കും.</b>",
         parse_mode="HTML",
         reply_markup=keyboard,
     )
@@ -634,7 +627,7 @@ async def connect_handler(message: Message):
     # Admin അനുവദിച്ച Group ID ആണോ?
     if message.chat.id != CONNECTED_GROUP_ID:
         await message.answer(
-            "❌ ഈ group-ൽ bot connect ചെയ്യാൻ അനുവദിച്ചിട്ടില്ല."
+            "❌ ഇത് നിങ്ങൾക്ക് ചെയ്യാൻ പറ്റില്ല Sorry..."
         )
         return
 
