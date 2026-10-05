@@ -1162,10 +1162,8 @@ async def file_handler(message: Message):
         await message.answer(
             "⚠️ Please send a document or video."
         )
-        return
-
-    
-    file_name = (
+        റിട്ടേൺ
+file_name = (
     getattr(media, "file_name", None)
     or (
         message.caption.strip()
