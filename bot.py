@@ -1162,24 +1162,26 @@ async def file_handler(message: Message):
         await message.answer(
             "⚠️ Please send a document or video."
         )
-        റിട്ടേൺ
-file_name = (
-    getattr(media, "file_name", None)
-    or (
-        message.caption.strip()
-        if message.caption
-        else f"video_{len(active_batches[user_id]) + 1}.mp4"
+        return
+
+    file_name = (
+        getattr(media, "file_name", None)
+        or (
+            message.caption.strip()
+            if message.caption
+            else f"video_{len(active_batches[user_id]) + 1}.mp4"
+        )
     )
-)
 
-file_name = file_name.replace("@spotyseries", "")
+    # Remove @spotyseries from filename
+    file_name = file_name.replace("@spotyseries", "")
 
-file_data = {
-    "file_id": media.file_id,
-    "file_name": file_name,
-    "file_size": media.file_size,
-    "mime_type": media.mime_type,
-}
+    file_data = {
+        "file_id": media.file_id,
+        "file_name": file_name,
+        "file_size": media.file_size,
+        "mime_type": media.mime_type,
+    }
 
     active_batches[user_id].append(file_data)
 
@@ -1191,6 +1193,8 @@ file_data = {
         f"📦 Files in batch: {count}\n\n"
         f"Send another file or /finish"
     )
+
+
 # ============================================================
 # FASTAPI
 # ============================================================
