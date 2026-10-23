@@ -237,21 +237,35 @@ async def filters_handler(message: Message):
         )
         return
 
-    text = "📋 <b>Available Filters</b>\n\n"
+    # Split filters into multiple messages
+    header = "📋 <b>Available Filters</b>\n\n"
+    text = header
 
     for item in filters:
         keyword = item.get("keyword", "")
         count = len(item.get("buttons", []))
 
-        text += (
+        entry = (
             f"🔎 <code>{keyword}</code> "
             f"— {count} result(s)\n"
         )
 
-    await message.answer(
-        text,
-        parse_mode="HTML",
-    )
+        # Send current message before it gets too long
+        if len(text) + len(entry) > 3500:
+            await message.answer(
+                text,
+                parse_mode="HTML",
+            )
+            text = ""
+
+        text += entry
+
+    # Send remaining filters
+    if text:
+        await message.answer(
+            text,
+            parse_mode="HTML",
+        )
 
 
 # ============================================================
