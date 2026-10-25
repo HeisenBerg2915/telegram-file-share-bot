@@ -581,31 +581,48 @@ async def start_handler(message: Message):
 
     user_id = message.from_user.id
 
-    pending_access[user_id] = code
-
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🔔 Join Channel",
-                    url=REQUEST_CHANNEL_LINK,
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🔄 TRY AGAIN",
-                    callback_data=f"check_join:{code}",
-                )
-            ],
-        ]
+# Check whether the user already joined the channel
+try:
+    member = await bot.get_chat_member(
+        chat_id=REQUEST_CHANNEL_ID,
+        user_id=user_id,
     )
 
-    await message.answer(
-        "🔒 ഫയലുകൾ ലഭിക്കാൻ ആദ്യം ചാനലിൽ Join Request അയക്കുക.\n\n"
-        "നിങ്ങളുടെ Request Approve ചെയ്തശേഷം TRY AGAIN അമർത്തുക.",
-        reply_markup=keyboard,
-    )
-    return
+    if member.status in ("member", "administrator", "creator"):
+        await send_batch_result(
+            chat_id=user_id,
+            code=code,
+        )
+        return
+
+except Exception as e:
+    print(f"Membership check error: {e}")
+
+pending_access[user_id] = code
+
+keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🔔 Join Channel",
+                url=REQUEST_CHANNEL_LINK,
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🔄 TRY AGAIN",
+                callback_data=f"check_join:{code}",
+            )
+        ],
+    ]
+)
+
+await message.answer(
+    "🔒 ഫയലുകൾ ലഭിക്കാൻ ആദ്യം ചാനലിൽ Join Request അയക്കുക.\n\n"
+    "നിങ്ങളുടെ Request Approve ചെയ്തശേഷം TRY AGAIN അമർത്തുക.",
+    reply_markup=keyboard,
+)
+return
 
 # ============================================================
 # CONNECT GROUP
