@@ -542,13 +542,13 @@ async def start_handler(message: Message):
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text="👥 Jᴏɪɴ ᴏʀᴜ Gʀᴏᴜᴘ 👥",
+                        text="👥 ᴊᴏɪɴ ᴏᴜʀ ɢʀᴏᴜᴘ 👥",
                         url="https://t.me/+Ik14BdOewjQzYjI1",
                     )
                 ],
                 [
                     InlineKeyboardButton(
-                        text="📌 Jᴏɪɴ Uᴘᴅᴀᴛᴇ Cʜᴀɴɴᴇʟ 📌",
+                        text="📌 ᴊᴏɪɴ ᴛᴏ ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ 📌",
                         url="https://t.me/Clmainchannel",
                     )
                 ],
@@ -556,8 +556,8 @@ async def start_handler(message: Message):
         )
 
         await message.answer(
-            "<b>Wᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ Dʀᴏᴘ Zᴏɴᴇ ⚡</b>\n\n"
-            "🤖 <b>ഞാൻ ഒരു Fɪʟᴇ Sʜᴀʀɪɴɢ Bᴏᴛ ആണ്.</b>\n"
+            "<b>ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ᴅʀᴏᴘ ᴢᴏɴᴇ ⚡</b>\n\n"
+            "🤖 <b>ഞാൻ ഒരു ғɪʟᴇ sʜᴀʀɪɴɢ ʙᴏᴛ ആണ്.</b>\n"
             "🎬 <b>ചിത്രലോകം ഗ്രൂപ്പിന് വേണ്ടി മാത്രം എന്നെ നിർമ്മിച്ചിരിക്കുന്നു. ❤️</b>",
             parse_mode="HTML",
             reply_markup=keyboard,
@@ -604,13 +604,13 @@ async def start_handler(message: Message):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🔔 Join Channel",
+                    text="ᴊᴏɪɴ ᴛᴏ ᴄʜᴀɴɴᴇʟ",
                     url=REQUEST_CHANNEL_LINK,
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="🔄 TRY AGAIN",
+                    text="ᴛʀʏ ᴀɢᴀɪɴ",
                     callback_data=f"check_join:{code}",
                 )
             ],
