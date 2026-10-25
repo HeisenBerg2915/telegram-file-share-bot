@@ -60,7 +60,7 @@ FILES_PER_PAGE = 8
 TAGS = [
     "dvdwap.com", "Dvdworld", "DVDWORLD", "DVDWO", "KC", "KC_", "MF", "MLM", "MZone", "MoviezzClub", "HDMVCOUNTER", "YMovieZNew",
     "A2MOVIES", "HDTCPREDVDFILES", "Tamil_Full_Movie",
-    "@ADrama_Lovers", "@AVA", "@BuLLMovieee", "@BM_Links", "@BestMovie", "@CC", "@CC_All", "@CC_ALL_MOVIES2", "@CC_NEW", "@CC_X265",
+    "@ADrama_Lovers", "@AVA", "@BuLLMovieee", "@BM_Links", "@BestMovie", "@CC", "@CC_All", "@CC_ALL_MOVIES2", "@CC_NEW", "@ALBCINEMAS©", "@FC_HEVC", "@CC_X265",
     "@CCineClub", "@CCM", "@CMVLA", "@CE_Links", "@CMEHD", "@Clipmate_Movie_Team", "@CR_Rockers", "@cinecom88", " @Cinematic_world", "@Cinema Company", " @cinema_company", "@Cinema_Company", "@CINEMA_BUDDIES", "@Country_Fellows",
     "@Cinema_Kottaka", "@cinema library", "@CKMovies", "@CK_HEVC", "@CK_Moviez", "CT™️", "@CelluloidCineClub", " @colorkannadi_movies", "@C_V", "@CVM", "@DailyMovieZhunt", "@desimovies", "@DK_Drama", "@DM_LinkZzzz",
     "@DMovies", "@DramaOST", "@Dubbedmovies", " @DVDWOALL", "@DvdWap", "@E4E", "@E4E_Rockers", "Filmy4wap_xyz", "@FBM_x265", "@FBM_HW", "@FBM_New", "@FILIMHOUSE",
