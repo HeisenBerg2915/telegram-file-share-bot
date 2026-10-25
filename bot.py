@@ -26,7 +26,7 @@ ADMIN_ID = os.getenv("ADMIN_ID")
 
 # Request-to-Join channel
 REQUEST_CHANNEL_ID = -1004366581317
-REQUEST_CHANNEL_LINK = "https://t.me/+TBEZZOyLdPdjODg1"
+REQUEST_CHANNEL_LINK = "https://t.me/+P1NVvQus-ugyNGE9"
 
 # /connect അനുവദിച്ച Group ID
 CONNECTED_GROUP_ID = -1002670818803
@@ -581,9 +581,29 @@ async def start_handler(message: Message):
 
     user_id = message.from_user.id
 
-    await send_batch_result(
-        chat_id=user_id,
-        code=code,
+    pending_access[user_id] = code
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🔔 Join Channel",
+                    url=REQUEST_CHANNEL_LINK,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔄 TRY AGAIN",
+                    callback_data=f"check_join:{code}",
+                )
+            ],
+        ]
+    )
+
+    await message.answer(
+        "🔒 ഫയലുകൾ ലഭിക്കാൻ ആദ്യം ചാനലിൽ Join Request അയക്കുക.\n\n"
+        "നിങ്ങളുടെ Request Approve ചെയ്തശേഷം TRY AGAIN അമർത്തുക.",
+        reply_markup=keyboard,
     )
     return
 
@@ -640,16 +660,15 @@ async def join_request_handler(request: ChatJoinRequest):
         f"user={user_id}, channel={chat_id}"
     )
 
-    # Only our request channel
     if chat_id != REQUEST_CHANNEL_ID:
         return
 
-    # User must have opened a batch link first
-    if user_id not in pending_access:
+    code = pending_access.get(user_id)
+
+    if not code:
         return
 
     try:
-        # Auto approve the join request
         await bot.approve_chat_join_request(
             chat_id=chat_id,
             user_id=user_id,
@@ -659,11 +678,17 @@ async def join_request_handler(request: ChatJoinRequest):
             f"Join request approved for user {user_id}"
         )
 
+        await send_batch_result(
+            chat_id=user_id,
+            code=code,
+        )
+
+        pending_access.pop(user_id, None)
+
     except Exception as e:
         print(
             f"Join request approval error: {e}"
         )
-
 
 # ============================================================
 # TRY AGAIN
