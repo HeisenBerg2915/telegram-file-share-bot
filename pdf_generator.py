@@ -56,7 +56,10 @@ def create_filters_pdf(filters):
     rows = [["No.", "Filter Keyword", "Buttons Count"]]
 
     for index, item in enumerate(filters, start=1):
-        keyword = html.escape(str(item.get("keyword", "")))
+        keyword = html.escape(
+            str(item.get("keyword", ""))
+        )
+
         buttons = item.get("buttons", []) or []
 
         rows.append([
@@ -73,9 +76,12 @@ def create_filters_pdf(filters):
         )
 
         table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#263238")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, 0),
+             colors.HexColor("#263238")),
+            ("TEXTCOLOR", (0, 0), (-1, 0),
+             colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.5,
+             colors.grey),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 7),
             ("RIGHTPADDING", (0, 0), (-1, -1), 7),
