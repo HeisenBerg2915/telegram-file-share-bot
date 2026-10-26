@@ -3,6 +3,8 @@ import asyncio
 import secrets
 import html
 from datetime import datetime, timezone
+from aiogram.types import BufferedInputFile
+from pdf_generator import create_filters_pdf
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -356,7 +358,6 @@ async def filter_handler(message: Message):
 
 @router.message(Command("filters"))
 async def filters_handler(message: Message):
-
     if not await filter_admin_only(message):
         return
 
@@ -367,46 +368,25 @@ async def filters_handler(message: Message):
                 "_id": 0,
                 "keyword": 1,
                 "buttons": 1,
-            }
+            },
         ).sort("keyword", 1)
     )
 
-    if not filters:
-        await message.answer(
-            "📂 <b>No filters found.</b>",
-            parse_mode="HTML",
-        )
-        return
+    pdf_data = create_filters_pdf(filters)
 
-    # Split filters into multiple messages
-    header = "📋 <b>Available Filters</b>\n\n"
-    text = header
+    pdf_file = BufferedInputFile(
+        pdf_data,
+        filename="filters_report.pdf",
+    )
 
-    for item in filters:
-        keyword = item.get("keyword", "")
-        count = len(item.get("buttons", []))
-
-        entry = (
-            f"🔎 <code>{keyword}</code> "
-            f"— {count} result(s)\n"
-        )
-
-        # Send current message before it gets too long
-        if len(text) + len(entry) > 3500:
-            await message.answer(
-                text,
-                parse_mode="HTML",
-            )
-            text = ""
-
-        text += entry
-
-    # Send remaining filters
-    if text:
-        await message.answer(
-            text,
-            parse_mode="HTML",
-        )
+    await message.answer_document(
+        document=pdf_file,
+        caption=(
+            "📋 <b>Available Filters</b>\n\n"
+            f"🔢 Total Filters: <b>{len(filters)}</b>"
+        ),
+        parse_mode="HTML",
+    )
 
 
 # ============================================================
