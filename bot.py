@@ -527,6 +527,23 @@ def format_file_size(size):
 
     return f"{int(size)} B"
 
+def natural_sort_files(files):
+    import re
+
+    def sort_key(file):
+        name = clean_caption_tags(
+            file.get("file_name") or ""
+        ).lower()
+
+        parts = re.split(r"(\d+)", name)
+
+        return [
+            (0, int(part)) if part.isdigit()
+            else (1, part)
+            for part in parts
+        ]
+
+    return sorted(files, key=sort_key)
 
 def create_file_keyboard(code, files, page=0):
     total_files = len(files)
