@@ -1180,15 +1180,44 @@ async def stats_handler(message: Message):
 # ============================================================
 
 def normalize_filter_keyword(value: str) -> str:
-    """Normalize any admin-added filter for case/space/punctuation-insensitive search.
+    """Normalize keywords for case- and punctuation-insensitive matching."""
+    return "".join(
+        char for char in (value or "").casefold()
+        if char.isalnum()
+    )
 
-    Only letters and digits are retained, including non-English Unicode letters.
-    Examples: Spider-Man, Spider Man and spiderman match; Spider-Man 2 stays
-    distinct because its number is retained. This runs against current DB filters,
-    so newly added filters work without a hard-coded movie list or migration.
-    """
-    return "".join(char for char in (value or "").casefold() if char.isalnum())
 
+def filter_keyword_matches(filter_keyword: str, user_query: str) -> bool:
+    """Match filter title inside a longer user search query."""
+    import re
+
+    ignored_words = {"the", "a", "an"}
+
+    def clean_words(value):
+        return [
+            re.sub(r"[^\w]", "", word, flags=re.UNICODE)
+            for word in (value or "").casefold().split()
+        ]
+
+    filter_words = [
+        word for word in clean_words(filter_keyword) if word
+    ]
+    query_words = [
+        word for word in clean_words(user_query) if word
+    ]
+
+    while filter_words and filter_words[0] in ignored_words:
+        filter_words.pop(0)
+
+    if not filter_words or not query_words:
+        return False
+
+    width = len(filter_words)
+
+    return any(
+        query_words[i:i + width] == filter_words
+        for i in range(len(query_words) - width + 1)
+    )
 
 @router.message(lambda message: message.text is not None)
 async def filter_search_handler(message: Message):
@@ -1208,25 +1237,45 @@ async def filter_search_handler(message: Message):
 
     # First preserve exact matching. If that fails, match only differences in
     # capitalization, spaces, or punctuation (e.g. Spider-Man == Spider Man).
-    filter_data = filters_collection.find_one({"keyword": keyword})
+filter_data = filters_collection.find_one({"keyword": keyword})
 
-    if not filter_data:
-        normalized_query = normalize_filter_keyword(keyword)
-        if not normalized_query:
-            return
+if not filter_data:
+    normalized_query = normalize_filter_keyword(keyword)
 
-        # Compare existing filters without creating or modifying any DB records.
-        for candidate in filters_collection.find({}, {"keyword": 1, "buttons": 1, "caption": 1, "photo_file_id": 1}):
-            if normalize_filter_keyword(candidate.get("keyword", "")) == normalized_query:
-                filter_data = candidate
-                break
-
-    if not filter_data:
+    if not normalized_query:
         return
 
-    buttons = filter_data.get("buttons", [])
-    caption = filter_data.get("caption", "")
-    photo_file_id = filter_data.get("photo_file_id")
+    candidates = list(
+        filters_collection.find(
+            {},
+            {
+                "keyword": 1,
+                "buttons": 1,
+                "caption": 1,
+                "photo_file_id": 1,
+            },
+        )
+    )
+
+    matches = []
+
+    for candidate in candidates:
+        candidate_keyword = candidate.get("keyword", "")
+
+        if (
+            normalize_filter_keyword(candidate_keyword)
+            == normalized_query
+            or filter_keyword_matches(candidate_keyword, keyword)
+        ):
+            matches.append(candidate)
+
+    if matches:
+        filter_data = max(
+            matches,
+            key=lambda item: len(
+                normalize_filter_keyword(item.get("keyword", ""))
+            ),
+        )
 
     # --------------------------------------------------------
     # CREATE BUTTONS
