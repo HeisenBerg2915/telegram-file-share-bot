@@ -1188,7 +1188,7 @@ def normalize_filter_keyword(value: str) -> str:
 
 
 def filter_keyword_matches(filter_keyword: str, user_query: str) -> bool:
-    """Match filter title inside a longer user search query."""
+    """Match a filter title inside a longer user search query."""
     import re
 
     ignored_words = {"the", "a", "an"}
@@ -1219,6 +1219,7 @@ def filter_keyword_matches(filter_keyword: str, user_query: str) -> bool:
         for i in range(len(query_words) - width + 1)
     )
 
+
 @router.message(lambda message: message.text is not None)
 async def filter_search_handler(message: Message):
 
@@ -1235,54 +1236,58 @@ async def filter_search_handler(message: Message):
     if not keyword:
         return
 
-    # First preserve exact matching. If that fails, match only differences in
-    # capitalization, spaces, or punctuation (e.g. Spider-Man == Spider Man).
-filter_data = filters_collection.find_one({"keyword": keyword})
+    # Exact matching first
+    filter_data = filters_collection.find_one({"keyword": keyword})
 
-if not filter_data:
-    normalized_query = normalize_filter_keyword(keyword)
+    # Exact match ഇല്ലെങ്കിൽ normalized / partial matching
+    if not filter_data:
+        normalized_query = normalize_filter_keyword(keyword)
 
-    if not normalized_query:
+        if not normalized_query:
+            return
+
+        candidates = list(
+            filters_collection.find(
+                {},
+                {
+                    "keyword": 1,
+                    "buttons": 1,
+                    "caption": 1,
+                    "photo_file_id": 1,
+                },
+            )
+        )
+
+        matches = []
+
+        for candidate in candidates:
+            candidate_keyword = candidate.get("keyword", "")
+
+            if (
+                normalize_filter_keyword(candidate_keyword)
+                == normalized_query
+                or filter_keyword_matches(candidate_keyword, keyword)
+            ):
+                matches.append(candidate)
+
+        if matches:
+            filter_data = max(
+                matches,
+                key=lambda item: len(
+                    normalize_filter_keyword(item.get("keyword", ""))
+                ),
+            )
+
+    # Matching filter ഇല്ലെങ്കിൽ നിർത്തുക
+    if not filter_data:
         return
 
-    candidates = list(
-        filters_collection.find(
-            {},
-            {
-                "keyword": 1,
-                "buttons": 1,
-                "caption": 1,
-                "photo_file_id": 1,
-            },
-        )
-    )
+    # Filter data
+    buttons = filter_data.get("buttons", [])
+    caption = filter_data.get("caption", "")
+    photo_file_id = filter_data.get("photo_file_id")
 
-    matches = []
-
-    for candidate in candidates:
-        candidate_keyword = candidate.get("keyword", "")
-
-        if (
-            normalize_filter_keyword(candidate_keyword)
-            == normalized_query
-            or filter_keyword_matches(candidate_keyword, keyword)
-        ):
-            matches.append(candidate)
-
-    if matches:
-        filter_data = max(
-            matches,
-            key=lambda item: len(
-                normalize_filter_keyword(item.get("keyword", ""))
-            ),
-        )
-
-    # --------------------------------------------------------
     # CREATE BUTTONS
-    # --------------------------------------------------------
-
-    # Default: one button per row. Add :same to a button's URL syntax
-    # to place that button on the same row as the previous button.
     keyboard = []
 
     for item in buttons:
@@ -1290,7 +1295,7 @@ if not filter_data:
         url = (item.get("url") or "").strip()
         same = bool(item.get("same", False))
 
-        # Support filters saved before the `same` flag was introduced.
+        # പഴയ filters-ൽ :same syntax support ചെയ്യുക
         if url.endswith(":same"):
             url = url[:-5].strip()
             same = True
@@ -1298,7 +1303,10 @@ if not filter_data:
         if not name or not url:
             continue
 
-        button = InlineKeyboardButton(text=str(name), url=url)
+        button = InlineKeyboardButton(
+            text=str(name),
+            url=url,
+        )
 
         if same and keyboard:
             keyboard[-1].append(button)
@@ -1312,16 +1320,18 @@ if not filter_data:
             inline_keyboard=keyboard
         )
 
-    # --------------------------------------------------------
     # PHOTO RESULT
-    # --------------------------------------------------------
-
     if photo_file_id:
+        display_caption = (
+            clean_caption_tags(caption)
+            or f"🔎 Search Results For: {keyword}"
+        )
 
-        # Keep the poster caption inside Telegram's blockquote
-        # style, matching the poster/result format.
-        display_caption = clean_caption_tags(caption) or f"🔎 Search Results For: {keyword}"
-        display_caption = f"<blockquote><b>{html.escape(display_caption)}</b></blockquote>"
+        display_caption = (
+            f"<blockquote><b>"
+            f"{html.escape(display_caption)}"
+            f"</b></blockquote>"
+        )
 
         result_message = await bot.send_photo(
             chat_id=message.chat.id,
@@ -1332,33 +1342,28 @@ if not filter_data:
             reply_to_message_id=message.message_id,
         )
 
-    # --------------------------------------------------------
     # TEXT RESULT
-    # Existing text-only filter support
-    # --------------------------------------------------------
-
     else:
+        clean_text = clean_caption_tags(caption)
 
-        caption = clean_caption_tags(caption)
         result_message = await message.answer(
-            f"🔎 <b>Search Results For: {keyword}</b>\n\n"
-            f"{caption}\n\n"
+            f"🔎 <b>Search Results For: "
+            f"{html.escape(keyword)}</b>\n\n"
+            f"{html.escape(clean_text)}\n\n"
             f"📁 Results: <b>{len(keyboard)}</b>",
             parse_mode="HTML",
             reply_markup=reply_markup,
             reply_to_message_id=message.message_id,
         )
 
-    # --------------------------------------------------------
-    # DELETE SEARCH RESULT AFTER 5 MINUTES
-    # --------------------------------------------------------
-
+    # Search result 5 മിനിറ്റിനു ശേഷം delete ചെയ്യുക
     asyncio.create_task(
         delete_file_later(
             message.chat.id,
-            result_message.message_id
+            result_message.message_id,
         )
     )
+
     
 # ============================================================
 # FILE HANDLER
