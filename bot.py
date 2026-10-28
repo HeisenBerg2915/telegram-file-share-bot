@@ -675,17 +675,25 @@ async def start_handler(message: Message):
 
     # Normal /start
     if len(parts) == 1:
+        bot_info = await bot.get_me()
+
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text="👥 Jᴏɪɴ ᴏʀᴜ Gʀᴏᴜᴘ 👥",
+                        text="ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ",
+                        url=f"https://t.me/{bot_info.username}?startgroup=true",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="ᴊᴏɪɴ ᴛᴏ ɢʀᴏᴜᴘ",
                         url="https://t.me/+Ik14BdOewjQzYjI1",
                     )
                 ],
                 [
                     InlineKeyboardButton(
-                        text="📌 Jᴏɪɴ Uᴘᴅᴀᴛᴇ Cʜᴀɴɴᴇʟ 📌",
+                        text="ᴊᴏɪɴ ᴛᴏ ᴄʜᴀɴɴᴇʟ",
                         url="https://t.me/Flim_maxx",
                     )
                 ],
@@ -695,9 +703,9 @@ async def start_handler(message: Message):
         await message.answer_photo(
             photo="https://d.uguu.se/KzaffnRn.jpg",
             caption=(
-                "<b>Wᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ Dʀᴏᴘ Zᴏɴᴇ ⚡</b>\n\n"
+                "<b>ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ᴅʀᴏᴘ ᴢᴏɴᴇ ⚡</b>\n\n"
                 "🤖 <b>ഞാൻ ഒരു Fɪʟᴇ Sʜᴀʀɪɴɢ Bᴏᴛ ആണ്.</b>\n"
-                "🎬 <b>ചിത്രലോകം ഗ്രൂപ്പിന് വേണ്ടി മാത്രം എന്നെ നിർമ്മിച്ചിരിക്കുന്നു. ❤️</b>"
+                "🎬 <b> നിങ്ങൾക്ക് എന്നെ നിങ്ങളുടെ ഗ്രൂപ്പിലും യൂസ് ചെയ്യാം</b>"
             ),
             parse_mode="HTML",
             reply_markup=keyboard,
@@ -744,13 +752,13 @@ async def start_handler(message: Message):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🔔 Join Channel",
+                    text="ᴊᴏɪɴ ᴛᴏ ᴄʜᴀɴɴᴇʟ",
                     url=REQUEST_CHANNEL_LINK,
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="🔄 TRY AGAIN",
+                    text="ᴛʀʏ ᴀɢᴀɪɴ",
                     callback_data=f"check_join:{code}",
                 )
             ],
@@ -758,8 +766,8 @@ async def start_handler(message: Message):
     )
 
     await message.answer(
-        "🔒 ഫയലുകൾ ലഭിക്കാൻ ആദ്യം ചാനലിൽ Join Request അയക്കുക.\n\n"
-        "നിങ്ങളുടെ Request Approve ചെയ്തശേഷം TRY AGAIN അമർത്തുക.",
+        "<b>🔒 ഫയലുകൾ ലഭിക്കാൻ ആദ്യം ചാനലിൽ Join Request അയക്കുക.</b>\n\n"
+        "<b>നിങ്ങളുടെ Request Approve ചെയ്തശേഷം TRY AGAIN അമർത്തുക.</b>",
         reply_markup=keyboard,
     )
     return
