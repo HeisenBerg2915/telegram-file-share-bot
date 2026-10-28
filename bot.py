@@ -843,13 +843,6 @@ async def join_request_handler(request: ChatJoinRequest):
             f"Join request approved for user {user_id}"
         )
 
-        await send_batch_result(
-            chat_id=user_id,
-            code=code,
-        )
-
-        pending_access.pop(user_id, None)
-
     except Exception as e:
         print(
             f"Join request approval error: {e}"
