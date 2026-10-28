@@ -652,11 +652,11 @@ async def send_batch_result(chat_id, code):
     chat_id=chat_id,
     text=(
         f"<blockquote>{movie_name} ({year})</blockquote>\n\n"
-        "<b>🎬 Your requested files are ready!</b>\n\n"
-        "<b>📄 താഴെ നൽകിയിരിക്കുന്ന button-ൽ നിന്ന് "
-        "നിങ്ങൾക്ക് ആവശ്യമുള്ള file തിരഞ്ഞെടുക്കാം.</b>\n\n"
-        "🔗 <a href='https://t.me/Clmainchannel'>"
-        "<b>Team ചിത്രലോകം™️</b></a>"
+        "<b>🎬 Your Requested Files Are Ready!</b>\n\n"
+        "<b>📄 താഴെ നൽകിയിരിക്കുന്ന Button-ൽ നിന്ന് "
+        "നിങ്ങൾക്ക് ആവശ്യമുള്ള File തിരഞ്ഞെടുക്കാം.</b>\n\n"
+        "🔗 <a href='https://t.me/Flim_maxx'>"
+        "<b>⟬ ᴛᴇᴀᴍ ғʟɪᴍ ᴍᴀxx ⟭</b></a>"
     ),
     parse_mode="HTML",
     reply_markup=keyboard
@@ -766,8 +766,8 @@ async def start_handler(message: Message):
     )
 
     await message.answer(
-        "<b>🔒 ഫയലുകൾ ലഭിക്കാൻ ആദ്യം ചാനലിൽ Join Request അയക്കുക.</b>\n\n"
-        "<b>നിങ്ങളുടെ Request Approve ചെയ്തശേഷം TRY AGAIN അമർത്തുക.</b>",
+        "🔒 ഫയലുകൾ ലഭിക്കാൻ ആദ്യം ചാനലിൽ Join Request അയക്കുക.\n\n"
+        "നിങ്ങളുടെ Request Approve ചെയ്തശേഷം TRY AGAIN അമർത്തുക.",
         reply_markup=keyboard,
     )
     return
