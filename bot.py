@@ -60,7 +60,7 @@ FILES_PER_PAGE = 8
 
 # Caption tags to remove (case-insensitive)
 TAGS = [
-    "dvdwap.com", "Dvdworld", "DVDWORLD", "@ALBCINEMAS©", "@FC_HEVC", "[CF]", "DVDWO", "KC", "KC_", "MF", "MLM", "MZone", "MoviezzClub", "HDMVCOUNTER", "YMovieZNew",
+    "dvdwap.com", "Dvdworld", "DVDWORLD", "@ALBCINEMAS©", "@FC_HEVC", "[CF]", "DVDWO", "KC", "KC_", "MF", "themoviesboss", "MLM", "MZone", "MoviezzClub", "HDMVCOUNTER", "YMovieZNew",
     "A2MOVIES", "HDTCPREDVDFILES", "Tamil_Full_Movie",
     "@ADrama_Lovers", "@AVA", "@BuLLMovieee", "@BM_Links", "@BestMovie", "@T4TSA", "@CC", "@CC_All", "@CC_ALL_MOVIES2", "@CC_NEW", "@CC_X265",
     "@CCineClub", "@CCM", "@CMVLA", "@CE_Links", "@CMEHD", "@Clipmate_Movie_Team", "@CR_Rockers", "@cinecom88", " @Cinematic_world", "@Cinema Company", " @cinema_company", "@Cinema_Company", "@CINEMA_BUDDIES", "@Country_Fellows",
