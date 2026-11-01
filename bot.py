@@ -42,6 +42,7 @@ if not MONGO_URI:
 mongo = MongoClient(MONGO_URI)
 db = mongo["file_share_bot"]
 batches = db["batches"]
+pending_batches = db["pending_batches"]
 connected_groups = db["connected_groups"]
 filters_collection = db["filters"]
 
@@ -1099,7 +1100,19 @@ async def batch_handler(message: Message):
         )
         return
 
-    active_batches[user_id] = []
+    pending_batches.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "files": [],
+                "updated_at": datetime.now(timezone.utc)
+            },
+            "$setOnInsert": {
+                "created_at": datetime.now(timezone.utc)
+            }
+        },
+        upsert=True
+    )
 
     await message.answer(
         "📤 Send your files one by one.\n\n"
@@ -1115,14 +1128,18 @@ async def batch_handler(message: Message):
 async def finish_handler(message: Message):
     user_id = message.from_user.id
 
-    if user_id not in active_batches:
+    pending = pending_batches.find_one(
+        {"user_id": user_id}
+    )
+
+    if not pending:
         await message.answer(
             "❌ No active batch.\n\n"
             "Use /batch first."
         )
         return
 
-    files = active_batches[user_id]
+    files = pending.get("files", [])
 
     if not files:
         await message.answer(
@@ -1131,9 +1148,11 @@ async def finish_handler(message: Message):
         )
         return
 
-    # Store files in natural filename order so the shared link displays
-    # Episode 1, Episode 2, ... Episode 10 instead of lexicographic order.
-    files.sort(key=lambda item: natural_sort_key(item.get("file_name", "")))
+    files.sort(
+        key=lambda item: natural_sort_key(
+            item.get("file_name", "")
+        )
+    )
 
     code = secrets.token_urlsafe(8)
 
@@ -1146,7 +1165,9 @@ async def finish_handler(message: Message):
 
     batches.insert_one(batch_data)
 
-    del active_batches[user_id]
+    pending_batches.delete_one(
+        {"user_id": user_id}
+    )
 
     me = await bot.get_me()
 
@@ -1444,8 +1465,14 @@ async def filter_search_handler(message: Message):
 async def file_handler(message: Message):
     user_id = message.from_user.id
 
-    if user_id not in active_batches:
+    pending = pending_batches.find_one(
+        {"user_id": user_id}
+    )
+
+    if not pending:
         return
+
+    files = pending.get("files", [])
 
     media = message.document or message.video
 
@@ -1460,13 +1487,14 @@ async def file_handler(message: Message):
         or (
             message.caption.strip()
             if message.caption
-            else f"video_{len(active_batches[user_id]) + 1}.mp4"
+            else f"video_{len(files) + 1}.mp4"
         )
     )
 
-    # Remove @spotyseries from filename
     file_name = clean_caption_tags(file_name)
-    file_name = file_name.replace("@spotyseries", "").strip()
+    file_name = file_name.replace(
+        "@spotyseries", ""
+    ).strip()
 
     file_data = {
         "file_id": media.file_id,
@@ -1475,9 +1503,29 @@ async def file_handler(message: Message):
         "mime_type": media.mime_type,
     }
 
-    active_batches[user_id].append(file_data)
+    result = pending_batches.update_one(
+        {"user_id": user_id},
+        {
+            "$push": {
+                "files": file_data
+            },
+            "$set": {
+                "updated_at": datetime.now(timezone.utc)
+            }
+        }
+    )
 
-    count = len(active_batches[user_id])
+    if result.matched_count == 0:
+        await message.answer(
+            "❌ Batch session not found. Use /batch again."
+        )
+        return
+
+    updated = pending_batches.find_one(
+        {"user_id": user_id}
+    )
+
+    count = len(updated.get("files", []))
 
     await message.answer(
         f"✅ File added\n\n"
