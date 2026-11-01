@@ -511,12 +511,12 @@ async def delete_all_filters_callback(query: CallbackQuery):
     await query.answer("Done.")
 
 def natural_sort_key(value):
-    """Sort filenames in human/numeric order (Episode 2 before Episode 10)."""
+    """Sort filenames in natural/numeric order."""
     import re
 
     return [
         int(part) if part.isdigit() else part.casefold()
-        for part in re.split(r"(\\d+)", str(value or ""))
+        for part in re.split(r"(\d+)", str(value or ""))
     ]
 
 
