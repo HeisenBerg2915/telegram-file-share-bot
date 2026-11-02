@@ -626,6 +626,7 @@ async def send_batch_result(chat_id, code):
         files[0].get("file_name", "Unknown")
     )
 
+    # Extract Year
     year_match = re.search(
         r"\b(19\d{2}|20\d{2})\b",
         first_file_name
@@ -633,6 +634,7 @@ async def send_batch_result(chat_id, code):
 
     year = year_match.group(1) if year_match else "N/A"
 
+    # Remove file extension
     movie_name = re.sub(
         r"\.(mp4|mkv|avi|mov|webm)$",
         "",
@@ -640,14 +642,59 @@ async def send_batch_result(chat_id, code):
         flags=re.IGNORECASE
     )
 
+    # Remove Year from title
     if year_match:
-        movie_name = movie_name.replace(year, "").strip()
+        movie_name = re.sub(
+            rf"[\(\[\{{]?\b{year}\b[\)\]\}}]?",
+            "",
+            movie_name
+        )
 
+    # Remove Episode, Season and Chapter details
+    cleanup_pattern = (
+        r"\bS\d{1,2}\s*E\d{1,3}\b"
+        r"|\bSeason\s*\d+\s*(?:Episode|Ep)\s*\d+\b"
+        r"|\bChapter\s*\d+\b"
+        r"|\bEpisode\s*\d+\b"
+        r"|\bEp\s*\d+\b"
+        r"|\b(?:480|576|720|1080|2160)\s*p\b"
+        r"|\bWEB[- .]?DL\b"
+        r"|\bWEBRip\b"
+        r"|\bBluRay\b"
+        r"|\bBRRip\b"
+        r"|\bHDRip\b"
+        r"|\bNF\b"
+        r"|\bAMZN\b"
+        r"|\bMULTi\b"
+        r"|\bAAC(?:\s*2(?:[._ ]?0)?)?\b"
+        r"|\bDDP?\s*\d(?:[._ ]\d)?\b"
+        r"|\bHEVC\b"
+        r"|\bH\.?264\b"
+        r"|\bH\.?265\b"
+        r"|\bx264\b"
+        r"|\bx265\b"
+        r"|\b10bit\b"
+        r"|\b8bit\b"
+    )
+
+    cleanup_match = re.search(
+        cleanup_pattern,
+        movie_name,
+        flags=re.IGNORECASE
+    )
+
+    if cleanup_match:
+        movie_name = movie_name[:cleanup_match.start()]
+
+    # Final title cleanup
     movie_name = re.sub(
         r"[_\.]+",
         " ",
         movie_name
-    ).strip()
+    ).strip(" -_.()[]{}")
+
+    if not movie_name:
+        movie_name = "Unknown"
 
     keyboard = create_file_keyboard(
         code=code,
@@ -670,7 +717,6 @@ async def send_batch_result(chat_id, code):
     )
 
     return True
-
 
 # ============================================================
 # START
