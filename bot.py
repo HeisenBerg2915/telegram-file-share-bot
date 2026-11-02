@@ -622,7 +622,9 @@ async def send_batch_result(chat_id, code):
 
     import re
 
-    first_file_name = clean_caption_tags(files[0].get("file_name", "Unknown"))
+    first_file_name = clean_caption_tags(
+        files[0].get("file_name", "Unknown")
+    )
 
     year_match = re.search(
         r"\b(19\d{2}|20\d{2})\b",
@@ -641,7 +643,11 @@ async def send_batch_result(chat_id, code):
     if year_match:
         movie_name = movie_name.replace(year, "").strip()
 
-    movie_name = re.sub(r"[_\.]+", " ", movie_name).strip()
+    movie_name = re.sub(
+        r"[_\.]+",
+        " ",
+        movie_name
+    ).strip()
 
     keyboard = create_file_keyboard(
         code=code,
@@ -650,19 +656,19 @@ async def send_batch_result(chat_id, code):
     )
 
     sent_message = await bot.send_message(
-    chat_id=chat_id,
-    text=(
-        f"<blockquote>{movie_name} ({year})</blockquote>\n\n"
-        "<b>🎬 Your Requested Files Are Ready!</b>\n\n"
-        "<b>📄 താഴെ നൽകിയിരിക്കുന്ന Button-ൽ നിന്ന് "
-        "നിങ്ങൾക്ക് ആവശ്യമുള്ള File തിരഞ്ഞെടുക്കാം.</b>\n\n"
-        "🔗 <a href='https://t.me/Flim_maxx'>"
-        "<b>⟬ ᴛᴇᴀᴍ ғʟɪᴍ ᴍᴀxx ⟭</b></a>"
-    ),
-    parse_mode="HTML",
-    reply_markup=keyboard
+        chat_id=chat_id,
+        text=(
+            f"<blockquote><b>{movie_name} ({year})</b></blockquote>\n\n"
+            "<b>🎬 Your Requested Files Are Ready!</b>\n\n"
+            "<b>📄 താഴെ നൽകിയിരിക്കുന്ന Button-ൽ നിന്ന് "
+            "നിങ്ങൾക്ക് ആവശ്യമുള്ള File തിരഞ്ഞെടുക്കാം.</b>\n\n"
+            "🔗 <a href='https://t.me/Flim_maxx'>"
+            "<b>⟬ ᴛᴇᴀᴍ ғʟɪᴍ ᴍᴀxx ⟭</b></a>"
+        ),
+        parse_mode="HTML",
+        reply_markup=keyboard
     )
-    
+
     return True
 
 
